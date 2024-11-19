@@ -19,7 +19,7 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 
 
 # OpenAI and other API settings
-OPENAI_API_KEY = "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"
+
 
 # Document processing settings
 MAX_UPLOAD_SIZE = 5242880  # 5MB

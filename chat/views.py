@@ -7,6 +7,7 @@ from django.conf import settings
 import os
 import logging
 from django.views import View
+from django.core.files.storage import default_storage
 
 logger = logging.getLogger(__name__)
 
@@ -75,37 +76,100 @@ def custom_summary(request, document_id):
         })
     
     return JsonResponse({'error': 'Invalid request'}, status=400) 
+    
+@login_required
+def _extract_text(self, file_path: str, file_type: str) -> str:
+        logger.debug(f"Processing file: {file_path} of type: {file_type}")
+
+        if file_type == 'pdf':
+            loader = PyPDFLoader(file_path)
+            pages = loader.load()
+            return '\n'.join(page.page_content for page in pages)
+        
+        elif file_type == 'docx':
+            loader = Docx2txtLoader(file_path)
+            pages = loader.load()
+            return '\n'.join(page.page_content for page in pages)
+        
+        elif file_type in ['png', 'jpg', 'jpeg']:
+            loader = UnstructuredImageLoader(file_path)
+            pages = loader.load()
+            return '\n'.join(page.page_content for page in pages)
+        
+        raise ValueError(f"Unsupported file type: {file_type}")
 
 class UploadView(View):
     def post(self, request):
-        files = request.FILES.getlist('files')
-        prompt = request.POST.get('prompt', '')  # Get the prompt from the form
-        
-        if not files:
-            return JsonResponse({'error': 'No files were uploaded.'}, status=400)
+        try:
+            # Get the list of uploaded files
+            files = request.FILES.getlist('files')
+            prompt = request.POST.get('prompt', '').strip()
 
-        results = []
-        processor = DocumentProcessor()
-
-        # Process each file
-        for file in files:
-            file_type = file.name.split('.')[-1]  # Get the file type from the file name
-            extracted_text, summary = processor.process_documents([file], [file_type])[0]  # Process the file
+            if not files:
+                return JsonResponse({'error': 'No files were uploaded.'}, status=400)
             
-            # Here you can use the prompt for further processing
-            # For example, you might want to generate a response based on the prompt
-            response = self.generate_response_based_on_prompt(extracted_text, prompt)
+            if not prompt:
+                return JsonResponse({'error': 'Prompt cannot be empty.'}, status=400)
 
-            results.append({
-                'file_name': file.name,
-                'extracted_text': extracted_text,
-                'summary': summary,
-                'response': response  # Include the response based on the prompt
+            results = []
+            processor = DocumentProcessor()
+
+            for file in files:
+                # Get file extension
+                file_extension = file.name.split('.')[-1].lower()
+                
+                # Validate file type
+                if file_extension not in settings.ALLOWED_DOCUMENT_TYPES:
+                    return JsonResponse({
+                        'error': f'Invalid file type: {file_extension}'
+                    }, status=400)
+
+                # Save the file and get its path
+                doc = Document.objects.create(
+                    user=request.user,
+                    file=file,
+                    file_type=file_extension
+                )
+
+                try:
+                    # Process document using the saved file path
+                    extracted_text, summary = processor.process_document(
+                        doc.file.path,
+                        file_extension
+                    )
+
+                    # Update document with processed text and summary
+                    doc.processed_text = extracted_text
+                    doc.summary = summary
+                    doc.save()
+
+                    # Generate custom response based on prompt
+                    custom_response = processor.generate_custom_summary(
+                        extracted_text,
+                        prompt
+                    )
+
+                    results.append({
+                        'file_name': file.name,
+                        'document_id': doc.id,
+                        'summary': summary,
+                        'custom_response': custom_response
+                    })
+
+                except Exception as e:
+                    logger.error(f"Error processing file {file.name}: {str(e)}")
+                    doc.delete()  # Clean up if processing failed
+                    return JsonResponse({
+                        'error': f'Error processing file {file.name}: {str(e)}'
+                    }, status=500)
+
+            return JsonResponse({
+                'message': 'Files processed successfully!',
+                'results': results
             })
 
-        return JsonResponse({'message': 'Files uploaded and processed successfully!', 'results': results})
-
-    def generate_response_based_on_prompt(self, extracted_text, prompt):
-        # Implement your logic to generate a response based on the extracted text and prompt
-        # This could involve calling another service or processing the text
-        return f"Response based on prompt: {prompt} and extracted text." 
+        except Exception as e:
+            logger.error(f"Upload error: {str(e)}")
+            return JsonResponse({
+                'error': f'Server error: {str(e)}'
+            }, status=500)

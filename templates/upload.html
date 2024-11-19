@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Documents</title>
+</head>
+<body>
+    <h1>Upload Documents</h1>
+    <form id="uploadForm" enctype="multipart/form-data" method="POST" action="/upload/">
+        {% csrf_token %}
+        <label for="files">Upload Documents:</label>
+        <input type="file" id="files" name="files" multiple accept=".pdf,.docx,.png,.jpg,.jpeg">
+        <button type="submit">Upload</button>
+    </form>
+</body>
+</html>

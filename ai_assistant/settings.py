@@ -39,7 +39,7 @@ STATIC_ROOT = os.path.join(PROJECT_DIR, 'static')
 STATIC_ROOT = "app-root/repo/wsgi/static"
 
 STATIC_URL = '/static/'
-SECRET_KEY = 'your-secret-key-here'  # Generate a new secret key
+
 ROOT_URLCONF = 'ai_assistant.urls'
 DEBUG = True
 

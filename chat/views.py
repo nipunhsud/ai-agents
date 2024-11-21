@@ -8,7 +8,7 @@ import os
 import logging
 from django.views import View
 from django.core.files.storage import default_storage
-
+from .agent import Agent
 logger = logging.getLogger(__name__)
 
 @login_required
@@ -18,6 +18,15 @@ def upload_page(request):
         return render(request, 'chat/upload.html')
     except Exception as e:
         logger.error(f"Error rendering upload page: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+def react_page(request):
+    logger.debug(f"User {request.user} accessing react page")
+    try:
+        return render(request, 'chat/react.html')
+    except Exception as e:
+        logger.error(f"Error rendering react page: {str(e)}")
         return JsonResponse({'error': str(e)}, status=500)
 
 @login_required
@@ -98,6 +107,25 @@ def _extract_text(self, file_path: str, file_type: str) -> str:
         
         raise ValueError(f"Unsupported file type: {file_type}")
 
+class AgentView(View):
+    def post(self, request):
+        user_input = request.POST.get('input', '')
+
+        if not user_input:
+            return JsonResponse({'error': 'Input cannot be empty.'}, status=400)
+
+        # Instantiate the AIReActAgent
+        try:
+            agent = Agent()
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+        # Run the agent with the user input
+        action_response = agent.run(user_input)
+    
+        # Return the response as JSON
+        return JsonResponse({'response': action_response})
+        
 class UploadView(View):
     def post(self, request):
         try:

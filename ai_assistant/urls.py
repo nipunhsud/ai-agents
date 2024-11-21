@@ -12,4 +12,6 @@ urlpatterns = [
     path('uploads/', views.upload_document, name='upload_document'),
     path('summary/<int:document_id>/', views.custom_summary, name='custom_summary'),
     path('login/', auth_views.LoginView.as_view(), name='login'),
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) 
+    path('agent/', views.AgentView.as_view(), name='agent'),
+    path('react/', views.react_page, name='react_page'), 
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Documents</title>
+    <style>
+        .error { color: red; }
+        .success { color: green; }
+        #uploadStatus { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Upload Documents</h1>
+    <form id="uploadForm" enctype="multipart/form-data" method="POST" action="/upload/">
+        {% csrf_token %}
+        <label for="files">Upload Documents:</label>
+        <input type="file" id="files" name="files" multiple accept=".pdf,.docx,.png,.jpg,.jpeg">
+        
+        <label for="prompt">Enter Prompt:</label>
+        <textarea id="prompt" name="prompt" rows="4" cols="50" placeholder="Enter your prompt here..."></textarea>
+        
+        <button type="submit">Upload</button>
+    </form>
+
+    <div id="uploadStatus"></div>
+
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const files = document.getElementById('files').files;
+            const prompt = document.getElementById('prompt').value.trim();
+            
+            if (files.length === 0) {
+                alert('Please select at least one file to upload.');
+                return;
+            }
+            
+            if (!prompt) {
+                alert('Please enter a prompt.');
+                return;
+            }
+
+            const statusDiv = document.getElementById('uploadStatus');
+            statusDiv.innerHTML = 'Processing files...';
+            
+            const formData = new FormData(this);
+            
+            try {
+                const response = await fetch('/upload/', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    let resultsHtml = '<h2>Results:</h2>';
+                    data.results.forEach(result => {
+                        resultsHtml += `
+                            <div class="result">
+                                <h3>${result.file_name}</h3>
+                                <p><strong>Summary:</strong> ${result.summary}</p>
+                                <p><strong>Custom Response:</strong> ${result.custom_response}</p>
+                            </div>
+                        `;
+                    });
+                    statusDiv.className = 'success';
+                    statusDiv.innerHTML = resultsHtml;
+                } else {
+                    statusDiv.className = 'error';
+                    statusDiv.innerHTML = `Error: ${data.error}`;
+                }
+            } catch (error) {
+                statusDiv.className = 'error';
+                statusDiv.innerHTML = `Error: ${error.message}`;
+                console.error('Upload error:', error);
+            }
+        });
+    </script>
+</body>
+</html>

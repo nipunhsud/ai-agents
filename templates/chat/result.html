@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gift Recommendations</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f5f5f5;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+            color: #2d3748;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: #718096;
+        }
+
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            padding: 1rem;
+        }
+
+        .product-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease;
+        }
+
+        .product-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .product-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 1rem;
+        }
+
+        .product-reason {
+            color: #4a5568;
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+
+        .product-price {
+            font-weight: 600;
+            color: #48bb78;
+            margin-bottom: 0.5rem;
+        }
+
+        .product-relation {
+            font-size: 0.875rem;
+            color: #718096;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .product-link {
+            display: inline-block;
+            margin-top: 1rem;
+            padding: 0.5rem 1rem;
+            background-color: #4299e1;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            transition: background-color 0.2s ease;
+        }
+
+        .product-link:hover {
+            background-color: #3182ce;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+
+            .products-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Personalized Gift Recommendations</h1>
+            <p>Here are some carefully selected gifts based on your preferences</p>
+        </div>
+        <div class="products-grid" id="productsContainer">
+            <!-- Products will be dynamically inserted here -->
+        </div>
+    </div>
+
+    <script>
+        // Function to create product cards
+        function createProductCards(data) {
+            const container = document.getElementById('productsContainer');
+            const products = data.data.products;
+
+            products.forEach(product => {
+                const card = document.createElement('div');
+                card.className = 'product-card';
+                card.innerHTML = `
+                    <h2 class="product-title">${product.product_title}</h2>
+                    <p class="product-reason">${product.reason}</p>
+                    <div class="product-price">${product.price}</div>
+                    <p class="product-relation">${product.relation_of_interest}</p>
+                    ${product.url ? `<a href="${product.url}" target="_blank" class="product-link">View Product</a>` : ''}
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // Example usage with your JSON data
+        const jsonData = JSON.parse('{{ json_data|escapejs|safe }}');
+        
+        // Initialize the page with the data
+        document.addEventListener('DOMContentLoaded', () => {
+            createProductCards(jsonData);
+        });
+    </script>
+</body>
+</html>

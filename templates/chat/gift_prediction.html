@@ -1,0 +1,190 @@
+
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gift Recommendation Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #f6f8fd 0%, #f1f4f9 100%);
+        }
+
+        .form-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+
+        .input-field {
+            transition: all 0.3s ease;
+        }
+
+        .input-field:focus {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .section-card {
+            transition: all 0.3s ease;
+        }
+
+        .section-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        }
+
+        .gradient-button {
+            background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+            transition: all 0.3s ease;
+        }
+
+        .gradient-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+    </style>
+</head>
+<body class="min-h-screen py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-4xl mx-auto form-container rounded-2xl shadow-2xl p-8 mb-12">
+        <div class="text-center mb-12">
+            <h1 class="text-4xl font-bold text-gray-800 mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
+                Gift Recommendation Assistant
+            </h1>
+            <p class="text-lg text-gray-600">Let us help you find the perfect gift! ✨</p>
+        </div>
+
+        <form method="POST" action="{% url 'gift' %}">
+            {% csrf_token %}
+            <!-- Recipient Information -->
+            <div class="section-card bg-white rounded-xl p-6 shadow-lg border border-gray-100">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
+                    <span class="bg-indigo-100 text-indigo-600 p-2 rounded-lg mr-3">👤</span>
+                    Recipient Information
+                </h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Recipient's Name</label>
+                        <input type="text" name="name" required
+                            class="input-field w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Age</label>
+                        <input type="number" name="age" min="0" max="120" required
+                            class="input-field w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Relationship to Recipient</label>
+                        <select name="relationship" required
+                            class="input-field w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 bg-white">
+                            <option value="">Select relationship</option>
+                            <option value="family">Family Member</option>
+                            <option value="friend">Friend</option>
+                            <option value="colleague">Colleague</option>
+                            <option value="significant_other">Significant Other</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Interests & Preferences -->
+            <div class="section-card bg-white rounded-xl p-6 shadow-lg border border-gray-100 mt-8">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
+                    <span class="bg-purple-100 text-purple-600 p-2 rounded-lg mr-3">💝</span>
+                    Interests & Preferences
+                </h2>
+                
+                <div class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Hobbies & Interests</label>
+                        <textarea name="interests" rows="3" required
+                            class="input-field w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                            placeholder="e.g., reading, cooking, sports, technology..."></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Favorite Brands or Stores (optional)</label>
+                        <input type="text" name="brands"
+                            class="input-field w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                            placeholder="e.g., Nike, Apple, Amazon...">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gift Parameters -->
+            <div class="section-card bg-white rounded-xl p-6 shadow-lg border border-gray-100 mt-8">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
+                    <span class="bg-pink-100 text-pink-600 p-2 rounded-lg mr-3">🎁</span>
+                    Gift Parameters
+                </h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Budget Range</label>
+                        <select name="budget" required
+                            class="input-field w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 bg-white">
+                            <option value="">Select budget range</option>
+                            <option value="under$25">Under $25</option>
+                            <option value="$25-$50">$25 - $50</option>
+                            <option value="$50-$100">$50 - $100</option>
+                            <option value="$100-$200">$100 - $200</option>
+                            <option value="$200plus">$200+</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Occasion</label>
+                        <select name="occasion" required
+                            class="input-field w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 bg-white">
+                            <option value="">Select occasion</option>
+                            <option value="birthday">Birthday</option>
+                            <option value="christmas">Christmas</option>
+                            <option value="anniversary">Anniversary</option>
+                            <option value="graduation">Graduation</option>
+                            <option value="wedding">Wedding</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">User's Query (optional)</label>
+                        <textarea name="User_query" rows="3"
+                            class="input-field w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                            placeholder="Any other relevant information..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Previous Gifts -->
+            <div class="section-card bg-white rounded-xl p-6 shadow-lg border border-gray-100 mt-8">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
+                    <span class="bg-green-100 text-green-600 p-2 rounded-lg mr-3">📝</span>
+                    Previous Gifts
+                </h2>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Recent Gifts They've Received (optional)</label>
+                    <textarea name="previous_gifts" rows="3"
+                        class="input-field w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                        placeholder="List any recent gifts they've received..."></textarea>
+                </div>
+            </div>
+
+            <div class="pt-6">
+                <button type="submit"
+                    class="gradient-button w-full py-4 px-6 rounded-xl text-white font-semibold text-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Get Gift Recommendations ✨
+                </button>
+            </div>
+        </form>
+    </div>
+</body>
+</html>

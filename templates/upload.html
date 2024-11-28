@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Documents</title>
+</head>
+<body>
+    <h1>Upload Documents</h1>
+    <form id="uploadForm" enctype="multipart/form-data" method="POST" action="/upload/">
+        {% csrf_token %}
+        <label for="files">Upload Documents:</label>
+        <input type="file" id="files" name="files" multiple accept=".pdf,.docx,.png,.jpg,.jpeg">
+        
+        <label for="prompt">Enter Prompt:</label>
+        <textarea id="prompt" name="prompt" rows="4" cols="50" placeholder="Enter your prompt here..."></textarea>
+        
+        <button type="submit">Upload</button>
+    </form>
+
+    <div id="uploadStatus"></div>
+
+    <script>
+        document.getElementById('uploadForm').onsubmit = function(event) {
+            const files = document.getElementById('files').files;
+            if (files.length === 0) {
+                alert('Please select at least one file to upload.');
+                event.preventDefault(); // Prevent form submission
+            }
+        };
+    </script>
+</body>
+</html>

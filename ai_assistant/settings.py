@@ -47,7 +47,7 @@ STATIC_URL = '/static/'
 ROOT_URLCONF = 'ai_assistant.urls'
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['ai-agents-nh6y.onrender.com']
 
 TEMPLATES = [
     {

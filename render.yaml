@@ -5,7 +5,7 @@ services:
     repo: https://github.com/nipunhsud/ai-agents.git # Replace this url
     name: ai-agents
     env: python
-    region: oregon # the region must be consistent across all services for the internal keys to be read
+    region: virginia # the region must be consistent across all services for the internal keys to be read
     buildCommand: "./build.sh"
     startCommand: python manage.py runserver 0.0.0.0:8000
     envVars:

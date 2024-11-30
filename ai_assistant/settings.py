@@ -93,3 +93,11 @@ DATABASES = {
 }
 
 LOGIN_URL = '/admin/login/'  # Since we're using admin login
+
+CSRF_TRUSTED_ORIGINS = ['https://ai-agents-nh6y.onrender.com', 'www.purnam.ai']
+
+CORS_ALLOWED_ORIGINS = [
+    'https://ai-agents-nh6y.onrender.com',
+    'www.purnam.ai'
+]
+CORS_ALLOW_CREDENTIALS = True

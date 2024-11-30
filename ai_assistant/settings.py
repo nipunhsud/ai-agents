@@ -98,6 +98,7 @@ CSRF_TRUSTED_ORIGINS = ['https://ai-agents-nh6y.onrender.com', 'https://www.purn
 
 CORS_ALLOWED_ORIGINS = [
     'https://ai-agents-nh6y.onrender.com',
+    'https://*.onrender.com'
     'https://www.purnam.ai/'
 ]
 CORS_ALLOW_CREDENTIALS = True

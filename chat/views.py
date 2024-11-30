@@ -45,7 +45,8 @@ def gift_prediction_view(request):
             'budget': request.POST.get('budget'),
             'occasion': request.POST.get('occasion'),
             'notes': request.POST.get('notes'),
-            'previous_gifts': request.POST.get('previous_gifts')
+            'previous_gifts': request.POST.get('previous_gifts'),
+            'preferred_site':'ecommerce site'
         }
         print(data)  # For testing, you can see the data in console
         result,json_data = gift_prediction(data)

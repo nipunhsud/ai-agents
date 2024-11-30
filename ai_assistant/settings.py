@@ -6,6 +6,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'chat',  # Add the chat app
+    'slack_agent',
 ]
 
 # Add at the bottom of the file

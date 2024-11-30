@@ -77,7 +77,7 @@ gift_agent_prompt = """You are a thoughtful gift recommendation assistant. Your 
 
 Process for making recommendations:
 1. First, analyze the provided information about the recipient and any past gift history
-2. Search for relevant gift ideas based on this information using Tavily
+2. Search only from ecommerce site for relevant gift ideas based on this information using Tavily
 3. Compile a curated list of specific gift suggestions, including:
    - Why this gift would be appropriate
    - Approximate price range
@@ -110,7 +110,7 @@ abot = Agent(model, [tool], system=gift_agent_prompt)
 
 def gift_prediction(content):
     
-    messages = [HumanMessage(content="Here are information: "+str(content)+". Based on provided information Recommend best 3 gift. ")]
+    messages = [HumanMessage(content="Here are information: "+str(content)+". Based on provided information Recommend best 3 gift. Only from ecommerce site. ")]
     result = abot.graph.invoke({"messages": messages})
 
     #print(result)

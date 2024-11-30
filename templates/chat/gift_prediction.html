@@ -5,7 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gift Recommendation Assistant</title>
+    <title>Gifting Agent</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
@@ -82,7 +82,7 @@
 
                     <div class="md:col-span-2">
                         <label class="block text-sm font-medium text-gray-700 mb-2">Relationship to Recipient</label>
-                        <select name="relationship" required
+                        <select name="relationship" id="relationshipSelect" required
                             class="input-field w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 bg-white">
                             <option value="">Select relationship</option>
                             <option value="family">Family Member</option>
@@ -91,6 +91,13 @@
                             <option value="significant_other">Significant Other</option>
                             <option value="other">Other</option>
                         </select>
+                    </div>
+                    <!-- Add this new div for the other relationship input -->
+                    <div class="md:col-span-2 mt-4" id="otherRelationshipDiv" style="display: none;">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Please specify relationship</label>
+                        <input type="text" name="relationship" id="otherRelationshipInput"
+                            class="input-field w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                            placeholder="Please specify your relationship">
                     </div>
                 </div>
             </div>
@@ -136,13 +143,16 @@
                             <option value="$25-$50">$25 - $50</option>
                             <option value="$50-$100">$50 - $100</option>
                             <option value="$100-$200">$100 - $200</option>
-                            <option value="$200plus">$200+</option>
+                            <option value="$200-$500">$200 - $500</option>
+                            <option value="$500-$1000">$500 - $1000</option>
+                            <option value="$1000-$5000">$1000 - $5000</option>
+                            <option value="$5000plus">$5000+</option>
                         </select>
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Occasion</label>
-                        <select name="occasion" required
+                        <select name="occasion" id="occasionSelect" required
                             class="input-field w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 bg-white">
                             <option value="">Select occasion</option>
                             <option value="birthday">Birthday</option>
@@ -152,6 +162,14 @@
                             <option value="wedding">Wedding</option>
                             <option value="other">Other</option>
                         </select>
+                    </div>
+
+                    <!-- Add the other occasion input -->
+                    <div class="mt-4" id="otherOccasionDiv" style="display: none;">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Please specify occasion</label>
+                        <input type="text" name="occasion" id="otherOccasionInput"
+                            class="input-field w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                            placeholder="Please specify the occasion">
                     </div>
 
                     <div class="md:col-span-2">
@@ -186,5 +204,35 @@
             </div>
         </form>
     </div>
+
+    <script>
+        // Function to handle "Other" option for any select field
+        function handleOtherOption(selectElement, otherDiv, otherInput) {
+            selectElement.addEventListener('change', function() {
+                if (this.value === 'other') {
+                    otherDiv.style.display = 'block';
+                    otherInput.required = true;
+                } else {
+                    otherDiv.style.display = 'none';
+                    otherInput.required = false;
+                    otherInput.value = ''; // Clear the input when hidden
+                }
+            });
+        }
+
+        // Handle Relationship field
+        handleOtherOption(
+            document.getElementById('relationshipSelect'),
+            document.getElementById('otherRelationshipDiv'),
+            document.getElementById('otherRelationshipInput')
+        );
+
+        // Handle Occasion field
+        handleOtherOption(
+            document.getElementById('occasionSelect'),
+            document.getElementById('otherOccasionDiv'),
+            document.getElementById('otherOccasionInput')
+        );
+    </script>
 </body>
 </html>

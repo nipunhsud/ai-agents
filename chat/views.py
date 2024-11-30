@@ -9,6 +9,7 @@ from langchain.schema import HumanMessage
 from langchain.chat_models import ChatOpenAI
 from django.core.files.storage import default_storage
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import ensure_csrf_cookie
 
 from .agent import Agent
 from .models import Message
@@ -34,6 +35,7 @@ def test(request):
     return JsonResponse({'agdum':response})
 
 
+@ensure_csrf_cookie
 def gift_prediction_view(request):
     if request.method == 'POST':
         data = {

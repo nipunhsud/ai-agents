@@ -6,7 +6,7 @@ services:
     name: ai-agents
     env: python
     region: oregon # the region must be consistent across all services for the internal keys to be read
-    buildCommand: "./bin/render-build.sh"
+    buildCommand: "./build.sh"
     startCommand: python manage.py runserver 0.0.0.0:8000
     envVars:
       - key: DATABASE_URL

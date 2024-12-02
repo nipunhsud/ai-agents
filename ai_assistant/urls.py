@@ -18,5 +18,6 @@ urlpatterns = [
     path('test/', views.test, name='test'), 
     path("gift/",views.gift_prediction_view, name='gift'),
     path("slack/",test, name='slack'),
+    path('writer/', views.technical_writer_view, name='technical_writer'),
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

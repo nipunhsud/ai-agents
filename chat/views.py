@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 
 from django.views import View
 from django.conf import settings
@@ -10,6 +11,7 @@ from langchain.chat_models import ChatOpenAI
 from django.core.files.storage import default_storage
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.csrf import csrf_protect
 
 from .agent import Agent
 from .models import Message
@@ -17,6 +19,7 @@ from .models import Document
 from .models import Conversation
 from .gift_agent import gift_prediction
 from .document_processor import DocumentProcessor
+from .technical_writer import TechnicalWriter, DocumentType, OutputFormat
 
 
 logger = logging.getLogger(__name__)
@@ -273,4 +276,65 @@ class UploadView(View):
             return JsonResponse({
                 'error': f'Server error: {str(e)}'
             }, status=500)
+        
+@csrf_protect
+async def technical_writer_view(request):
+    if request.method == 'GET':
+        logger.info("Received GET request for technical writer view")
+        return render(request, 'chat/technical_writer_view.html')
+    
+    if request.method == 'POST':
+        logger.info("Received POST request for document generation")
+        try:
+            # Log incoming request data
+            logger.debug(f"Form data received: {request.POST}")
+            
+            # Initialize the TechnicalWriter
+            api_key = os.getenv('OPENAI_API_KEY')
+            if not api_key:
+                logger.error("OPENAI_API_KEY not found in environment variables")
+                raise ValueError("OpenAI API key not configured")
+            
+            # Get form data
+            content = request.POST.get('content')
+            doc_type_str = request.POST.get('doc_type')
+            output_format_str = request.POST.get('output_format')
+            tone = request.POST.get('tone')
+            technical_level = request.POST.get('technical_level')
+            
+            logger.info(f"Processing request - Content length: {len(content) if content else 0}, "
+                       f"Document Type: {doc_type_str}, Output Format: {output_format_str}")
+            
+            if not content:
+                raise ValueError("No content provided")
+            
+            writer = TechnicalWriter(api_key=api_key)
+            
+            # Generate document
+            logger.info("Starting document generation")
+            document = await writer.generate_document(
+                content=content,
+                doc_type=DocumentType(doc_type_str),
+                output_format=OutputFormat(output_format_str),
+                tone=tone,
+                technical_level=technical_level
+            )
+            
+            logger.info("Document generation completed")
+            logger.debug(f"Generated document preview: {str(document)[:200]}...")
+            
+            if not document:
+                raise ValueError("No document content generated")
+            
+            return JsonResponse({
+                'success': True,
+                'content': document
+            })
+            
+        except Exception as e:
+            logger.error(f"Error during document generation: {str(e)}", exc_info=True)
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            }, status=500)  # Added status code for errors
         

@@ -47,7 +47,7 @@ STATIC_URL = '/static/'
 ROOT_URLCONF = 'ai_assistant.urls'
 DEBUG = True
 
-ALLOWED_HOSTS = ['ai-agents-nh6y.onrender.com']
+ALLOWED_HOSTS = ['ai-agents-nh6y.onrender.com', 'localhost']
 
 TEMPLATES = [
     {
@@ -98,7 +98,8 @@ CSRF_TRUSTED_ORIGINS = ['https://ai-agents-nh6y.onrender.com', 'https://www.purn
 
 CORS_ALLOWED_ORIGINS = [
     'https://ai-agents-nh6y.onrender.com',
-    'https://*.onrender.com'
-    'https://www.purnam.ai/'
+    'https://*.onrender.com',
+    'https://www.purnam.ai/',
+    'localhost'
 ]
 CORS_ALLOW_CREDENTIALS = True

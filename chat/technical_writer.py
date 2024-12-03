@@ -93,9 +93,11 @@ class TechnicalWriter:
         
         logger.debug("Generating document structure")
         structure = await self._generate_structure(content, template)
-     
+
+        logger.debug("Generating full content")
+        result = await self._generate_content(structure, tone, technical_level)
         logger.debug(f"Formatting output as {output_format.value}")
-        return self._format_output(structure, output_format)
+        return self._format_output(result, output_format)
 
     async def _generate_structure(self, content: str, template: Dict) -> Dict:
         """Generate document structure from input content using the template."""
@@ -106,7 +108,17 @@ class TechnicalWriter:
             response = await self.client.chat.completions.create(
                 model="gpt-4",
                 messages=[
-                    {"role": "system", "content": "You are a technical writing assistant. Always respond with valid JSON."},
+                    {"role": "system", "content": """You are an senior technical content writer assistant specializing in creating clear, structured documentation. Your responses must:
+1. Always be in valid JSON format
+2. Be comprehensive yet concise
+3. Use clear, unambiguous language
+4. Follow technical writing best practices
+5. Maintain consistent terminology
+6. Include all required sections from the template
+7. Be properly formatted with appropriate hierarchical structure
+8. Ensure it is logically structured and flows like a technical document
+
+Focus on creating well-organized, professional documentation that effectively communicates technical concepts."""},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.7,
@@ -133,7 +145,19 @@ class TechnicalWriter:
             response = await self.client.chat.completions.create(
                 model="gpt-4",
                 messages=[
-                    {"role": "system", "content": "You are a technical writing assistant. Always respond with valid JSON."},
+                    {"role": "assistant", "content": """You are an senior technical content writer assistant specializing in creating detailed, well researched and accurate documentation. Your responses must:
+1. Always be in valid JSON format
+2. Generate comprehensive content for each section - ask questions if needed
+3. Use clear, precise technical language appropriate for the specified technical level
+4. Maintain consistent terminology throughout the document
+5. Include relevant examples and explanations where appropriate
+6. Follow the specified tone while maintaining professionalism
+7. Ensure content flows logically between sections
+8. Provide actionable information and clear instructions
+9. Use active voice and direct language
+10. Include appropriate technical details without overwhelming the reader
+
+Focus on creating engaging, informative content that effectively communicates complex technical concepts while maintaining readability."""},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.7,

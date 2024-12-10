@@ -1,0 +1,321 @@
+<!--
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Send Textarea Data</title>
+</head>
+<body>
+    <h2>Send Message</h2>
+    <textarea id="messageText" rows="4" cols="50" placeholder="Enter your event data here"></textarea>
+    <br><br>
+    <button onclick="sendMessage()">Send Message</button>
+
+    <script>
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        function sendMessage() {
+            const message = document.getElementById('messageText').value;
+            const csrftoken = getCookie('csrftoken');
+            
+            fetch('/slack2/', {  // Remove http://localhost:8000 and use relative path
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                },
+                body: JSON.stringify({ message: message }),
+                credentials: 'same-origin'  // Important for CSRF
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Success:', data);
+                // Clear textarea after successful send
+                document.getElementById('messageText').value = '';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error sending message');
+            });
+        }
+    </script>
+</body>
+</html>
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Send Message</title>
+    <style>
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            display: none;
+        }
+        .success {
+            background-color: #dff0d8;
+            color: #3c763d;
+            border: 1px solid #d6e9c6;
+        }
+        .error {
+            background-color: #f2dede;
+            color: #a94442;
+            border: 1px solid #ebccd1;
+        }
+        .loading {
+            display: inline-block;
+            margin-left: 10px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Send Message</h2>
+        <div class="form-group">
+            <textarea id="messageText" rows="4" placeholder="Enter your event data here"></textarea>
+        </div>
+        <div id="statusMessage" class="status"></div>
+        <button id="sendButton" onclick="sendMessage()">Send Message</button>
+        <span id="loading" class="loading">Sending...</span>
+    </div>
+
+    <script>
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        function showStatus(message, isError = false) {
+            const statusElement = document.getElementById('statusMessage');
+            statusElement.textContent = message;
+            statusElement.style.display = 'block';
+            statusElement.className = 'status ' + (isError ? 'error' : 'success');
+            setTimeout(() => {
+                statusElement.style.display = 'none';
+            }, 5000);
+        }
+
+        function setLoading(isLoading) {
+            const button = document.getElementById('sendButton');
+            const loadingIndicator = document.getElementById('loading');
+            button.disabled = isLoading;
+            loadingIndicator.style.display = isLoading ? 'inline-block' : 'none';
+        }
+
+        async function sendMessage() {
+            const messageElement = document.getElementById('messageText');
+            const message = messageElement.value.trim();
+            
+            if (!message) {
+                showStatus('Please enter a message', true);
+                return;
+            }
+
+            setLoading(true);
+            const csrftoken = getCookie('csrftoken');
+            
+            try {
+                const response = await fetch('/slack2/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken
+                    },
+                    body: JSON.stringify({ message: message }),
+                    credentials: 'same-origin'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    const data = await response.json();
+                    showStatus('Message sent successfully!');
+                } else {
+                    // Handle HTML response
+                    const html = await response.text();
+                    if (response.url.includes('success')) {
+                        showStatus('Message sent successfully!');
+                        messageElement.value = '';
+                    } else {
+                        showStatus('Error sending message', true);
+                    }
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showStatus('Error sending message: ' + error.message, true);
+            } finally {
+                setLoading(false);
+            }
+        }
+    </script>
+</body>
+</html>
+
+-->
+
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Send Message</title>
+    <style>
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .loading {
+            display: inline-block;
+            margin-left: 10px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Send Message</h2>
+        <div class="form-group">
+            <textarea id="messageText" rows="4" placeholder="Enter your event data here"></textarea>
+        </div>
+        <button id="sendButton" onclick="sendMessage()">Send Message</button>
+        <span id="loading" class="loading">Sending...</span>
+    </div>
+
+    <script>
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        function setLoading(isLoading) {
+            const button = document.getElementById('sendButton');
+            const loadingIndicator = document.getElementById('loading');
+            button.disabled = isLoading;
+            loadingIndicator.style.display = isLoading ? 'inline-block' : 'none';
+        }
+
+        async function sendMessage() {
+            const messageElement = document.getElementById('messageText');
+            const message = messageElement.value.trim();
+            
+            if (!message) {
+                alert('Please enter a message');
+                return;
+            }
+
+            setLoading(true);
+            const csrftoken = getCookie('csrftoken');
+            
+            try {
+                const response = await fetch('/slack2/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken
+                    },
+                    body: JSON.stringify({ message: message }),
+                    credentials: 'same-origin'
+                });
+
+                // Instead of handling the response as JSON, we'll handle the HTML response
+                const html = await response.text();
+                // Replace the entire page content with the new HTML
+                document.documentElement.innerHTML = html;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error sending message: ' + error.message);
+                setLoading(false);
+            }
+        }
+    </script>
+</body>
+</html>

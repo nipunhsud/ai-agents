@@ -3,15 +3,19 @@ import json
 import certifi
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
+from dotenv import load_dotenv
+import os
 
+# Load .env file
+load_dotenv()
 from .openai_llm import llm
 from .announcement_generator import SlackAnnouncementGenerator
 
 ssl_context = ssl.create_default_context(cafile=certifi.where())
-
+slack_token =  os.getenv('SLACK_TOKEN')
 
 client = WebClient(
-    token='xoxb-8032017402916-8106281877078-CWv8lJ0WhgGMC3dndfP4o6rS',
+    token=slack_token,
     ssl=ssl_context
 )
 

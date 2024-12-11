@@ -21,8 +21,6 @@ urlpatterns = [
     path('writer/', views.technical_writer_view, name='technical_writer'),
     path("slack2/",handle_message, name='slack_message'),
 
-    
-
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 

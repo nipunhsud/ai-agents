@@ -15,7 +15,8 @@ ssl_context = ssl.create_default_context(cafile=certifi.where())
 slack_token =  os.getenv('SLACK_TOKEN')
 
 client = WebClient(
-    token=slack_token,
+    #token="xoxb-8032017402916-8106281877078-l0ixOdLfA8MMZeHjsO1fJlHR",
+    token = slack_token,
     ssl=ssl_context
 )
 
@@ -78,7 +79,7 @@ def publish_announcements(feature_announcement,users,channels):
     print(channels)
     blocks=feature_announcement['blocks']
     title_text = feature_announcement['blocks'][0]['text']['text']
-    
+    status = False
     if users:
         for user in users:
             try:
@@ -88,6 +89,7 @@ def publish_announcements(feature_announcement,users,channels):
                     text=title_text  # Fallback text for notifications
                 )
                 print(f"Message sent: {response['ts']}")
+                status = True
             except SlackApiError as e:
                 print(f"Error: {e.response['error']}")
 
@@ -100,8 +102,10 @@ def publish_announcements(feature_announcement,users,channels):
                     text=title_text # Fallback text for notifications
                 )
                 print(f"Message sent: {response['ts']}")
+                status = True
             except SlackApiError as e:
                 print(f"Error: {e.response['error']}")
+    return status
 
     
 
@@ -277,19 +281,21 @@ def agdum(event):
                 channels = dict.get('channels',None)
                 print(channels)
 
-                feature_announcement = generator.generate_announcement(
-                    type=typee,
-                    title=title,
-                    description=description,
-                    date=date,
-                    impact=impact,
-                    next_steps=next_steps,
-                    additional_info=additional_info
-                )
-                publish_announcements(feature_announcement,users,channels)
+                feature_announcement = {
+                    "ty":typee,
+                    "title":title,
+                    "description":description,
+                    "date":date,
+                    "impact":impact,
+                    "next_steps":next_steps,
+                    "additional_info":additional_info,
+                }
+                return feature_announcement,users,channels
+            
+                #publish_announcements(feature_announcement,users,channels)
 
                 return status
 
         except:
             status = False
-            return status
+            return status,False,False

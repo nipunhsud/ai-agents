@@ -1,0 +1,53 @@
+<!--
+<html>
+    <head>
+        <style>
+            button {
+                padding: 10px 20px;
+                font-size: 16px;
+                cursor: pointer;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Sorry couldn't proceed didn't receive any proper event information</h1>
+       
+        <button onclick="location.reload()">Return to previous page</button>
+    </body>
+</html>
+-->
+<!-- Error Page -->
+<html>
+    <head>
+        <style>
+            button {
+                padding: 10px 20px;
+                font-size: 16px;
+                cursor: pointer;
+                background-color: #f0f0f0;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+            }
+            button:hover {
+                background-color: #e0e0e0;
+            }
+            .container {
+                text-align: center;
+                padding: 20px;
+            }
+            h1 {
+                color: #d32f2f;
+                margin-bottom: 20px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Sorry couldn't proceed didn't receive any proper event information</h1>
+            <button onclick="window.location.href = window.location.href">Return to previous page</button>
+            <!-- Alternative approach using window.location.replace:
+            <button onclick="window.location.replace(window.location.href)">Return to previous page</button>
+            -->
+        </div>
+    </body>
+</html>

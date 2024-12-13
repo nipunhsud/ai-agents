@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirm Announcement Details</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.js"></script>
+    <style>
+        .container {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #2d3748;
+        }
+
+        .form-input, .form-textarea, .form-multiselect {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            background-color: #fff;
+            color: #1a202c;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .form-input:focus, .form-textarea:focus, .form-multiselect:focus {
+            outline: none;
+            border-color: #4299e1;
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
+        }
+
+        .form-textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .form-multiselect {
+            height: 150px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+        }
+
+        .btn-primary {
+            background-color: #4299e1;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #3182ce;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background-color: #a0aec0;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background-color: #718096;
+            transform: translateY(-1px);
+        }
+
+        .next-step-input {
+            margin-bottom: 10px;
+        }
+
+        .button-group {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+        }
+
+        .page-title {
+            color: #2d3748;
+            margin-bottom: 30px;
+            font-size: 24px;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="container">
+        <h2 class="page-title">Confirm Announcement Details</h2>
+        
+        <form id="announcementForm" method="POST" onsubmit="return handleSubmit(event);">
+            {% csrf_token %}
+            <input type="hidden" name="confirm" value="true">
+            
+            <div class="form-group">
+                <label class="form-label">Type</label>
+                <input type="text" name="type" class="form-input" value="{{ announcement.type }}">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Title</label>
+                <input type="text" name="title" class="form-input" value="{{ announcement.title }}">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea name="description" class="form-textarea">{{ announcement.description }}</textarea>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Date</label>
+                <input type="text" name="date" class="form-input" value="{{ announcement.date }}">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Impact</label>
+                <textarea name="impact" class="form-textarea">{{ announcement.impact }}</textarea>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Next Steps</label>
+                <div id="nextStepsContainer">
+                    {% for step in announcement.next_steps %}
+                        <input type="text" name="next_steps" class="form-input next-step-input" value="{{ step }}">
+                    {% endfor %}
+                </div>
+                <button type="button" class="btn btn-secondary mt-2" onclick="addNextStep()">Add Step</button>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Additional Info</label>
+                <textarea name="additional_info" class="form-textarea">{{ announcement.additional_info }}</textarea>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="form-group">
+                    <label class="form-label">Selected Users</label>
+                    <select name="users" multiple class="form-multiselect">
+                        {% for user in all_users.members %}
+                            <option value="{{ user.id }}" {% if user.id in users %}selected{% endif %}>
+                                {{ user.name }} {% if user.profile.title %}({{ user.profile.title }}){% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Selected Channels</label>
+                    <select name="channels" multiple class="form-multiselect">
+                        {% for channel in all_channels %}
+                            <option value="{{ channel.id }}" {% if channel.id in channels %}selected{% endif %}>
+                                {{ channel.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <div class="button-group">
+                <button type="submit" class="btn btn-primary">Send Announcement</button>
+                <button type="button" class="btn btn-secondary" onclick="window.location.href='/slack2/'">Cancel</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        // Ensure form never submits normally
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('announcementForm');
+            form.addEventListener('submit', function(e) {
+                e.preventDefault(); // Belt and suspenders approach
+            });
+        });
+        function addNextStep() {
+            const container = document.getElementById('nextStepsContainer');
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.name = 'next_steps';
+            input.className = 'form-input next-step-input';
+            container.appendChild(input);
+        }
+
+        // Modified form submission handler to send JSON data
+        function handleSubmit(e) {
+            e.preventDefault();
+            
+            // Validate required fields
+            const requiredFields = ['type', 'title', 'description'];
+            let isValid = true;
+            
+            requiredFields.forEach(field => {
+                const value = this.elements[field].value.trim();
+                if (!value) {
+                    isValid = false;
+                    this.elements[field].classList.add('border-red-500');
+                } else {
+                    this.elements[field].classList.remove('border-red-500');
+                }
+                // Prevent the default form submission
+            e.preventDefault();
+            return false;
+            });
+
+            if (!isValid) {
+                alert('Please fill in all required fields');
+                return;
+            }
+
+            // Create the JSON data object
+            const jsonData = {
+                message: {
+                    type: this.elements['type'].value.trim(),
+                    title: this.elements['title'].value.trim(),
+                    description: this.elements['description'].value.trim(),
+                    date: this.elements['date'].value.trim(),
+                    impact: this.elements['impact'].value.trim(),
+                    next_steps: Array.from(this.elements['next_steps'])
+                        .map(input => input.value.trim())
+                        .filter(step => step),
+                    additional_info: this.elements['additional_info'].value.trim()
+                },
+                users: Array.from(this.elements['users'].selectedOptions).map(option => option.value),
+                channels: Array.from(this.elements['channels'].selectedOptions).map(option => option.value),
+                confirm: true
+            };
+
+            console.log('Sending JSON data:', jsonData);
+
+            // Send the JSON data
+            fetch('/slack2/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify(jsonData)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.text();
+            })
+            .then(html => {
+                // Replace the current page content with the response
+                document.documentElement.innerHTML = html;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error sending announcement. Please try again.');
+            });
+        };
+    </script>
+</body>
+</html>

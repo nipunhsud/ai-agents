@@ -3,7 +3,7 @@ from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
 from chat import views
-from slack_agent.views import test
+from slack_agent.views import test,handle_message
 from django.contrib.auth import views as auth_views
 
 urlpatterns = [
@@ -19,5 +19,9 @@ urlpatterns = [
     path("gift/",views.gift_prediction_view, name='gift'),
     path("slack/",test, name='slack'),
     path('writer/', views.technical_writer_view, name='technical_writer'),
+    path("slack2/",handle_message, name='slack_message'),
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+
+

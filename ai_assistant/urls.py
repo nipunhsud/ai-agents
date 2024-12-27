@@ -20,7 +20,9 @@ urlpatterns = [
     path("slack/",test, name='slack'),
     path('writer/', views.technical_writer_view, name='technical_writer'),
     path("slack2/",handle_message, name='slack_message'),
-
+    path("assistant/",views.AssistantView.as_view(), name='assistant'),
+    path("email_assistant/",views.EmailAssistantView.as_view(), name='email_assistant'),
+    path("stock_assistant/",views.StockAssistantView.as_view(), name='stock_assistant'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 

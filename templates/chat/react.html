@@ -43,7 +43,7 @@
             const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
             try {
-                const response = await fetch('/agent/', {
+                const response = await fetch('/email_assistant/', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',

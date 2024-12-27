@@ -20,7 +20,9 @@ from .models import Conversation
 from .gift_agent import gift_prediction
 from .document_processor import DocumentProcessor
 from .technical_writer import TechnicalWriter, DocumentType, OutputFormat
-
+from .assistant import Assistant
+from .email_assistant import email_generator
+from .stock_assistant import stock_generator
 
 logger = logging.getLogger(__name__)
 
@@ -338,3 +340,50 @@ async def technical_writer_view(request):
                 'error': str(e)
             }, status=500)  # Added status code for errors
         
+
+class AssistantView(View):
+    def post(self, request):
+        user_input = request.POST.get('input', '')
+
+        if not user_input:
+            return JsonResponse({'error': 'Input cannot be empty.'}, status=400)
+
+        # Instantiate the AIReActAgent
+        try:
+            assistant = Assistant()
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+        # Run the agent with the user input
+        assistant.add_message(user_input)
+        stream = assistant.run_assistant()
+        # Return the response as JSON
+        return JsonResponse({'response': "ok"})
+    
+class EmailAssistantView(View):
+    def post(self, request):
+        user_input = request.POST.get('input', '')
+
+        if not user_input:
+            return JsonResponse({'error': 'Input cannot be empty.'}, status=400)
+
+        try:
+            stream = email_generator(user_input)
+            email_response = stream.content
+            return JsonResponse({'response': email_response})
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+        
+class StockAssistantView(View):
+    def post(self, request):
+        user_input = request.POST.get('input', '')
+
+        if not user_input:
+            return JsonResponse({'error': 'Input cannot be empty.'}, status=400)
+
+        try:
+            stream = stock_generator(user_input)
+            email_response = stream.content
+            return JsonResponse({'response': email_response})
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)

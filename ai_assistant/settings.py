@@ -20,6 +20,7 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 SECRET_KEY='najim'
 SERPER_API_KEY = os.getenv('SERPER_API_KEY')
 FINANCIAL_DATASETS_API_KEY = os.getenv('FINANCIAL_DATASETS_API_KEY')
+SEARCHAPI_API_KEY = os.getenv('SEARCHAPI_API_KEY')
 if OPENAI_API_KEY is None:
     raise ValueError("OPENAI_API_KEY not found. Please set it in your environment variables or .env file.")
 

@@ -382,8 +382,8 @@ class StockAssistantView(View):
             return JsonResponse({'error': 'Input cannot be empty.'}, status=400)
 
         try:
-            stream = stock_generator(user_input)
-            email_response = stream.content
-            return JsonResponse({'response': email_response})
+            result,json_data = stock_generator(user_input)
+        
+            return JsonResponse({'response': json_data})
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)

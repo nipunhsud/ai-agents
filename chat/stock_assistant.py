@@ -222,7 +222,19 @@ When responding to queries:
 5. When appropriate, suggest additional analyses that might be helpful.
 6. Respond in USD if applicable - what is a good buy point for a stock?
 7. Use the google_trends_tool tool to get the trend and popularity of the stock
-8. Use the google_finance_tool tool to get the real-time stock news data
+8. Use the stock_quote_tool tool to get the real-time stock data
+9. Use the stock_listings_tool tool to get the real-time stock listings data
+10. Use the stock_ma_tool tool to get the real-time stock moving average data for a given ticker symbol and period
+11. Use the income_statement_tool tool to get the real-time income statement data for a given ticker symbol
+12. Use the institutional_ownership_tool tool to get the real-time institutional ownership data for a given ticker symbol
+13. Always provide the buy point for the stock in the json data
+14. Always provider EPS growth for the stock in the json data
+15. Always provider the next earnings announcement date for the stock in the json data
+16. Always provider the institutional ownership for the stock in the json data
+17. Always provider the 52 week high and low for the stock in the json data
+18. Always provider the price to earnings ratio for the stock in the json data
+19. Always provider the volume for the stock in the json data
+
 Remember, your goal is to provide accurate, insightful financial analysis to
 help users make informed decisions. Always maintain a professional and objective tone in your responses.
 
@@ -244,7 +256,7 @@ def stock_generator(content):
 
     print(result['messages'][-1].content)
     
-    json_data,status =parse_product_listings(result['messages'][-1].content)
+    json_data,status =result['messages'][-1].content
     print(json_data)
     if status:
         #print(json_data)
@@ -252,23 +264,21 @@ def stock_generator(content):
     else:
 
         content="""
-            Here are some products infomation ."""+result['messages'][-1].content+""" can you please give me these information in json format inside of a list
+            Here are some stock infomation ."""+result['messages'][-1].content+""" can you please give me these information in json format inside of a list
             example:
-            [{
-                'product_title': '',
-                'reason': '',
-                'price': '',
-                'url': '',
-                'relation_of_interest': ''
-            }{
-                'product_title': '',
-                'reason': '',
-                'price': '',
-                'url': '',
-                'relation_of_interest': ''
-            }]
+            {
+                'current_stock_price': '',
+                'change': '',
+                'market_cap': '',
+                'volume': '',
+                '52_week_high_low': '',
+                'earnings_per_share': '',
+                'price_to_earnings_ratio': '',
+                'next_earnings_announcement': '',
+                'institutional_ownership': '',
+            }
         """
-        messages = [HumanMessage(content=content)]
+        messages = [SystemMessage(content=content)]
         response = chat(messages)
         product_list=response.content
 
@@ -281,67 +291,3 @@ def stock_generator(content):
         print(response.content)
         
         return result['messages'][-1].content,json_data
-
-
-def parse_product_listings(text):
-    # Split text into individual product listings
-    products = []
-    product_blocks = text.split('\n\n')  # Split by double newline to separate products
-    
-    for block in product_blocks:
-        if not block.strip():  # Skip empty blocks
-            continue
-            
-        product = {
-            "product_title": "",
-            "reason": "",
-            "price": "",
-            "url": "",
-            "relation_of_interest": ""
-        }
-        
-        # Get Product Title
-        title_match = re.search(r'^\d+\.\s+\*\*([^*]+?)\*\*', block)
-        if title_match:
-            product["product_title"] = title_match.group(1).strip()
-        
-        # Get Reason
-        reason_match = re.search(r'\*\*Reason\*\*:\s*(.+?)(?=\n|$)', block)
-        if reason_match:
-            product["reason"] = reason_match.group(1).strip()
-            
-        # Get Price
-        price_match = re.search(r'\*\*Price\*\*:\s*(.+?)(?=\n|$)', block)
-        if price_match:
-            product["price"] = price_match.group(1).strip()
-            
-        # Get URL - handles markdown link format
-        url_match = re.search(r'\*\*URL\*\*:\s*\[.+?\]\((.+?)\)', block)
-        if url_match:
-            product["url"] = url_match.group(1).strip()
-            
-        # Get Relation of Interest
-        roi_match = re.search(r'\*\*Relation of Interest\*\*:\s*(.+?)(?=\n|$)', block)
-        if roi_match:
-            product["relation_of_interest"] = roi_match.group(1).strip()
-
-        
-        
-        if any(product.values()):  # Only add if at least one field was found
-            products.append(product)
-
-    # Check for empty values in all products after processing
-    status = True
-    for product in products:       
-        if (product['product_title'] == "" or 
-            product['reason'] == "" or 
-            product['price'] == "" or 
-            product['url'] == ""):
-            print("One or more fields are empty")
-            status = False
-        else:
-            print("All fields have values")
-
-        
-    
-    return products,status

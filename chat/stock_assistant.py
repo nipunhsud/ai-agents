@@ -28,10 +28,10 @@ from langchain_core.tools import StructuredTool
 tavily_tool = TavilySearchResults(max_results=4) #increased number of results
 _ = load_dotenv()
 
-def get_financial_growth(stock_ticker: str) -> dict:
+def get_financial_growth(stock_ticker: str, period: str) -> dict:
     """Get real-time stock quote data."""
     api_key = os.getenv("FMP_API_KEY")
-    url = f"https://financialmodelingprep.com/api/v3/financial-growth/{stock_ticker}?period=quarter&apikey={api_key}"
+    url = f"https://financialmodelingprep.com/api/v3/financial-growth/{stock_ticker}?period={period}&apikey={api_key}"
     
     response = requests.get(url)
     print(response.json())
@@ -76,7 +76,7 @@ def get_stock_ma(stock_ticker: str, period: int) -> dict:
         return data[0] if data else None
     return None
 
-def get_income_statement(stock_ticker: str, period: str) -> dict:
+def get_income_statement_by_period(stock_ticker: str, period: str) -> dict:
     """Get real-time stock quote data."""
     api_key = os.getenv("FMP_API_KEY")
     url = f"https://financialmodelingprep.com/api/v3/income-statement/{stock_ticker}?period={period}&apikey={api_key}"
@@ -119,7 +119,7 @@ stock_ma_tool = StructuredTool.from_function(
     description="Get real-time stock moving average data for a given ticker symbol and period"
 )
 income_statement_tool = StructuredTool.from_function(
-    func=get_income_statement,
+    func=get_income_statement_by_period,
     name="income_statement",
     description="Get real-time income statement data for a given ticker symbol"
 )
@@ -261,7 +261,10 @@ Remember, your goal is to provide accurate, insightful financial analysis to
 help users make informed decisions. Always maintain a professional and objective tone in your responses.
 
 
+Follow this example to return the response:
+Below is the detailed trading strategy and stock summary for NVIDIA Corporation (NVDA): ### Buy Point - **Current Stock Price**: $134.41 - **Buy Point Consideration**: Given that the current price is within 5% of the 52-week high of $152.89, it may be considered as a potential buy point if other conditions align. ### Target Price - **Target Price**: A reasonable target price could be set around the 52-week high at $152.89, considering the current market trends and historical highs. ### Supply and Demand - **Volume Analysis**: Current volume is at 109,261,501, which is lower than the average volume of 223,105,704. This indicates a lack of strong demand at the moment. - **Moving Averages**: - 50-day EMA: 136.45 - 150-day EMA: 123.69 - 200-day EMA: 116.47 - The stock is currently trading above the 150-day and 200-day EMAs, suggesting strong support levels. ### Tight Areas - The stock is trading near its highs with low volatility, indicating potential consolidation. ### Technical Analysis - **Market Direction**: The overall market appears to be in a positive trend with the 150-day EMA above the 200-day EMA and the 50-day EMA above the 150-day EMA. - **EPS Growth**: Positive quarterly EPS growth of 16.18% signals accelerating earnings. ### Google Trends - **Market Trends**: NVDA has been trending upwards with a significant increase in interest. - **Top Related Queries**: nvda price, nvda earnings, nvda nasdaq - **Rising Related Queries**: djt stock price, nvda robinhood, nvda split ### Stock Quote - **Current Stock Price**: $134.41 - **Change**: -2.24% - **Market Cap**: $3.29 trillion - **Volume**: 109,261,501 - **52 Week High/Low**: $152.89 / $47.32 - **Earnings Per Share**: $2.53 - **Price to Earnings Ratio**: 53.13 - **Next Earnings Announcement**: February 26, 2025 - **Institutional Ownership**: Data not available ### Earnings and Financial Growth - **Annual Revenue Growth**: NVDA's revenue grew to $60.92 billion in the fiscal year 2024. - **Annual EPS Growth**: 1.21 USD in 2024. - **Quarterly Revenue Growth**: 16.78% in Q3 2025. - **Quarterly EPS Growth**: 16.18% in Q3 2025. ### Recommendations - **Considerations**: The stock is a potential buy given its strong earnings growth, favorable technical indicators, and trending interest, but be cautious of current volume, which is lower than average. - **Recommendations for Action**: Consider entering when volume increases or if there is a breakout above the current resistance levels. ### Conclusion - **Summary**: NVDA is showing strong financial growth and positive market interest, making it a potentially attractive investment. However, traders should be cautious of the current low trading volume and wait for confirmation of demand before significant entry. - **Investment Outlook**: Positive, with potential for growth given the right market conditions and increased volume. By considering the above factors, you can make an informed decision on trading NVDA. Always continue monitoring market conditions and updates related to this stock.
 
+Also Return the response in json format
 
 Provide options and explanations for your suggestions."""
 
@@ -271,10 +274,11 @@ abot = StockAssistant()
 
 def stock_generator(content):
     
-    messages = [HumanMessage(content="Here are information: "+str(content)+".  Generate a stock trading strategy for this stock and give me the stock summary and analysis on the street")]
+    messages = [HumanMessage(content="Stock Ticker or Name: "+str(content)+".  Generate a stock trading strategy for this stock and give me the stock summary and analysis based on the rules deifined")]
     result = abot.graph.invoke({"messages": messages})
 
-    print(result)
+    
 
     json_data =result['messages'][-1].content
+    print(result)
     return result['messages'][-1].content,json_data

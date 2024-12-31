@@ -259,7 +259,7 @@ def stock_generator(content):
     json_data,status =result['messages'][-1].content
     print(json_data)
     if status:
-        #print(json_data)
+        print("Status :  ", status)
         return result['messages'][-1].content,json_data
     else:
 

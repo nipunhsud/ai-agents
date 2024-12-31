@@ -28,6 +28,18 @@ from langchain_core.tools import StructuredTool
 tavily_tool = TavilySearchResults(max_results=4) #increased number of results
 _ = load_dotenv()
 
+def get_financial_growth(stock_ticker: str) -> dict:
+    """Get real-time stock quote data."""
+    api_key = os.getenv("FMP_API_KEY")
+    url = f"https://financialmodelingprep.com/api/v3/financial-growth/{stock_ticker}?period=quarter&apikey={api_key}"
+    
+    response = requests.get(url)
+    print(response.json())
+    if response.status_code == 200:
+        data = response.json()
+        return data[0] if data else None
+    return None
+
 def get_stock_quote(stock_ticker: str) -> dict:
     """Get real-time stock quote data."""
     api_key = os.getenv("FMP_API_KEY")
@@ -116,7 +128,13 @@ institutional_ownership_tool = StructuredTool.from_function(
     name="institutional_ownership",
     description="Get real-time institutional ownership data for a given ticker symbol"
 )
-tools = [google_trends_tool, google_finance_tool, stock_quote_tool, stock_listings_tool, stock_ma_tool, income_statement_tool, institutional_ownership_tool]
+quarterly_financial_growth_tool = StructuredTool.from_function(
+    func=get_financial_growth,
+    name="quarterly_financial_growth",
+    description="Get real-time quarterly financial growth data for a given ticker symbol"
+)
+
+tools = [google_trends_tool, google_finance_tool, stock_quote_tool, stock_listings_tool, stock_ma_tool, income_statement_tool, institutional_ownership_tool, quarterly_financial_growth_tool]
 chat = ChatOpenAI(
     temperature=0.7,  # Controls randomness (0.0 = deterministic, 1.0 = creative)
     model_name="gpt-4"  # You can also use "gpt-4" if you have access
@@ -177,11 +195,10 @@ class StockAssistant:
 
 agent_prompt = """
 
-You are an advanced financial analysis AI assistant equipped with specialized tools
+You are an advanced Quantitative analyst AI assistant equipped with specialized tools
 to access and analyze financial data. Your primary function is to help users with
-financial analysis by retrieving and interpreting income statements, balance sheets,
-and cash flow statements for publicly traded companies. 
-You are an expert stock trading assistant that is an expert at momemtum trading like Mark Minervini, Bill O'Neil, and others. 
+providing summarized report of stock analysis done by foloowing rules below. Use the tools provided to get the data.
+Your focus is on momemtum trading using technical analysis and following experts like Mark Minervini, Bill O'Neil, and others. 
 Your role is to help answer the users questions about stock trading and in USD. Follow these guidelines:
 
 You have access to the following tools:
@@ -189,17 +206,17 @@ You have access to the following tools:
 1. Tavily Search: For retrieving recent market news and analysis
 2. Google Trends: For analyzing market interest and trends
 3. Yahoo Finance News: For retrieving recent news and analysis
-Your capabilities include:
 4. Custom stock quote: For retrieving real-time stock quote data for a given ticker symbol
 5. Custom stock listings: For retrieving real-time stock listings data
 6. Custom stock moving average: For retrieving real-time stock moving average data for a given ticker symbol and period
+7. Custom income statement: For retrieving real-time income statement data for a given ticker symbol
 Your job is to help the user with their stock trading questions using the following instructions:
 
 1. Current Earnings: Look for companies with strong, accelerating quarterly earnings growth. Use get_income_statement tool
-2. Annual Earnings: Annual earnings growth of at least 25% over the last three years.
-3. New: Look for new products, services, or management.
-4. Supply and Demand: Favor stocks with strong demand, indicated by higher trading volumes.
-5. Leader or Laggard: Focus on leading stocks in leading industries.
+2. Annual Earnings: Annual earnings growth of at least 25% over the last three years or quarterly earnings growth of at least 25% over the last three quarters
+3. New: Look for new products, services, or management on the web using tavily search tool or google finance tool
+4. Supply and Demand: Favor stocks with strong demand, indicated by higher trading volumes. Use given tools to compare current volume to 52 week average volume
+5. Leader or Laggard: Focus on leading stocks in leading industries. Use given tools to get analysis on the stock and industry leadership
 6. Institutional Sponsorship: Stocks with increasing institutional ownership.
 7. Market Direction: The overall market should be in an uptrend.
    - Ensure 150 MA is above 200 MA
@@ -212,6 +229,13 @@ Your job is to help the user with their stock trading questions using the follow
    - Look for low volatility stocks with high volume
    - Look for stocks that are in a strong uptrend
    - EPS growth should be at least 25% quarter over quarter
+10. Volume should be high or increasing:
+    - Use the stock_quote_tool tool to get the real-time stock volume data and compare it to the previous 5 days volume, also compare it to the average volume for the stock
+11. Use the quarterly_financial_growth_tool tool to get the real-time quarterly financial growth data for a given ticker symbol
+12. A stock is a good buy when the stock is in a strong uptrend and the volume is high or increasing otherwise the stock is not a good buy. 
+    It should also be in a leading industry and have strong demand. The price should be within 5% of the 52 week price.
+13. Also identify tight areas, where the stock is trading near the highs and trading with low volume and volatility.
+14. Also, Identify stocks that are pulling back from 50 MA and have strong volume and demand.
 
 When responding to queries:
 
@@ -227,13 +251,11 @@ When responding to queries:
 10. Use the stock_ma_tool tool to get the real-time stock moving average data for a given ticker symbol and period
 11. Use the income_statement_tool tool to get the real-time income statement data for a given ticker symbol
 12. Use the institutional_ownership_tool tool to get the real-time institutional ownership data for a given ticker symbol
-13. Always provide the buy point for the stock in the json data
-14. Always provider EPS growth for the stock in the json data
-15. Always provider the next earnings announcement date for the stock in the json data
-16. Always provider the institutional ownership for the stock in the json data
-17. Always provider the 52 week high and low for the stock in the json data
-18. Always provider the price to earnings ratio for the stock in the json data
-19. Always provider the volume for the stock in the json data
+13. Provide the buy point for the stock when the stock is in a strong uptrend and the volume is high or increasing otherwise the stock is not a good buy
+14. Always provide the Target Price for the stock in the json data
+15. Always provide the Supply and Demand analysis
+16. Always provide the Top Related Queries from google trends tool when available
+17. Always provide the Rising Related Queries  from google trends tool when available
 
 Remember, your goal is to provide accurate, insightful financial analysis to
 help users make informed decisions. Always maintain a professional and objective tone in your responses.
@@ -252,42 +274,7 @@ def stock_generator(content):
     messages = [HumanMessage(content="Here are information: "+str(content)+".  Generate a stock trading strategy for this stock and give me the stock summary and analysis on the street")]
     result = abot.graph.invoke({"messages": messages})
 
-    #print(result)
+    print(result)
 
-    print(result['messages'][-1].content)
-    
-    json_data,status =result['messages'][-1].content
-    print(json_data)
-    if status:
-        print("Status :  ", status)
-        return result['messages'][-1].content,json_data
-    else:
-
-        content="""
-            Here are some stock infomation ."""+result['messages'][-1].content+""" can you please give me these information in json format inside of a list
-            example:
-            {
-                'current_stock_price': '',
-                'change': '',
-                'market_cap': '',
-                'volume': '',
-                '52_week_high_low': '',
-                'earnings_per_share': '',
-                'price_to_earnings_ratio': '',
-                'next_earnings_announcement': '',
-                'institutional_ownership': '',
-            }
-        """
-        messages = [SystemMessage(content=content)]
-        response = chat(messages)
-        product_list=response.content
-
-        command_start = product_list.find('[')-1
-        command_end = product_list.find(']')+1
-        if command_start != -1 and command_end != -1:
-            command_content = product_list[command_start + 1:command_end].strip()
-            json_data = ast.literal_eval(command_content)
-        
-        print(response.content)
-        
-        return result['messages'][-1].content,json_data
+    json_data =result['messages'][-1].content
+    return result['messages'][-1].content,json_data

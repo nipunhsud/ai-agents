@@ -387,3 +387,11 @@ class StockAssistantView(View):
             return JsonResponse({'response': json_data})
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
+
+def quant_analyst_page(request):
+    logger.debug(f"User {request.user} accessing react page")
+    try:
+        return render(request, 'chat/quant_analyst.html')
+    except Exception as e:
+        logger.error(f"Error rendering react page: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)

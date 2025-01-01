@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Analysis Assistant</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .analysis-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .metric {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: white;
+            border-left: 4px solid #007bff;
+        }
+        .metric-title {
+            font-weight: bold;
+            color: #333;
+        }
+        .metric-value {
+            margin-left: 10px;
+            color: #666;
+        }
+        #response {
+            margin-top: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .metric h3 {
+            color: #0056b3;
+            margin: 10px 0;
+            font-size: 1.1em;
+        }
+        .metric ul {
+            margin: 5px 0 5px 20px;
+            padding: 0;
+        }
+        .metric ul li {
+            margin: 5px 0;
+            color: #666;
+        }
+        .metric div {
+            margin: 8px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Stock Analysis Assistant</h1>
+    <form id="reactForm">
+        {% csrf_token %}
+        <label for="userInput">Enter Stock Ticker or Company Name:</label>
+        <textarea id="userInput" name="input" rows="2" placeholder="e.g., AAPL, MSFT, GOOGL" required></textarea>
+        <br>
+        <button type="submit">Analyze Stock</button>
+    </form>
+
+    <div id="response"></div>
+
+    <script>
+        function formatResponse(data) {
+            try {
+                const analysis = JSON.parse(data.response);
+                const stockData = analysis.stock_summary;
+                
+                return `
+                    <div class="analysis-section">
+                        <h2>Stock Analysis - ${stockData.ticker}</h2>
+                        
+                        <div class="metric">
+                            <span class="metric-title">Current Price:</span>
+                            <span class="metric-value">$${stockData.current_price}</span>
+                        </div>
+
+                        <div class="metric">
+                            <span class="metric-title">Buy Point:</span>
+                            <span class="metric-value">${stockData.buy_point.consideration}</span>
+                        </div>
+
+                        <div class="metric">
+                            <span class="metric-title">Target Price:</span>
+                            <span class="metric-value">${stockData.target_price}</span>
+                        </div>
+
+                        <div class="metric">
+                            <h3>Supply and Demand</h3>
+                            <div>
+                                <span class="metric-title">Volume Analysis:</span>
+                                <span class="metric-value">${stockData.supply_and_demand.volume_analysis}</span>
+                            </div>
+                            <div>
+                                <span class="metric-title">Moving Averages:</span>
+                                <ul>
+                                    <li>50 Day EMA: ${stockData.supply_and_demand.moving_averages.day_ema_50}</li>
+                                    <li>150 Day EMA: ${stockData.supply_and_demand.moving_averages.day_ema_150}</li>
+                                    <li>200 Day EMA: ${stockData.supply_and_demand.moving_averages.day_ema_200}</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="metric">
+                            <h3>Technical Analysis</h3>
+                            <div>
+                                <span class="metric-title">Market Direction:</span>
+                                <span class="metric-value">${stockData.technical_analysis.market_direction}</span>
+                            </div>
+                            <div>
+                                <span class="metric-title">EPS Growth:</span>
+                                <span class="metric-value">${stockData.technical_analysis.eps_growth}</span>
+                            </div>
+                        </div>
+
+                        <div class="metric">
+                            <h3>Financial Analysis</h3>
+                            <div>
+                                <span class="metric-title">Quarterly Revenue:</span>
+                                <span class="metric-value">${stockData.quarterly_earnings_analysis.quarterly_revenue}</span>
+                            </div>
+                            <div>
+                                <span class="metric-title">Quarterly Net Income:</span>
+                                <span class="metric-value">${stockData.quarterly_earnings_analysis.quarterly_net_income}</span>
+                            </div>
+                            <div>
+                                <span class="metric-title">Quarterly EPS:</span>
+                                <span class="metric-value">${stockData.quarterly_earnings_analysis.quarterly_eps}</span>
+                            </div>
+                        </div>
+
+                        <div class="metric">
+                            <h3>Recommendations</h3>
+                            <div>
+                                <span class="metric-title">Considerations:</span>
+                                <span class="metric-value">${stockData.recommendations.considerations}</span>
+                            </div>
+                            <div>
+                                <span class="metric-title">Action Items:</span>
+                                <span class="metric-value">${stockData.recommendations.recommendations_for_action}</span>
+                            </div>
+                        </div>
+
+                        <div class="metric">
+                            <h3>Conclusion</h3>
+                            <div>
+                                <span class="metric-title">Summary:</span>
+                                <span class="metric-value">${stockData.conclusion.summary}</span>
+                            </div>
+                            <div>
+                                <span class="metric-title">Investment Outlook:</span>
+                                <span class="metric-value">${stockData.conclusion.investment_outlook}</span>
+                            </div>
+                        </div>
+                    </div>`;
+            } catch (e) {
+                console.log(e);
+                return `<div class="analysis-section">
+                    <pre style="white-space: pre-wrap;">${data.response}</pre>
+                </div>`;
+            }
+        }
+
+        document.getElementById('reactForm').onsubmit = async function(event) {
+            event.preventDefault();
+            const userInput = document.getElementById('userInput').value;
+            const responseDiv = document.getElementById('response');
+            responseDiv.innerHTML = '<div class="analysis-section">Analyzing stock data...</div>';
+
+            try {
+                const response = await fetch('/stock_assistant/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    },
+                    body: new URLSearchParams({ 'input': userInput })
+                });
+
+                if (!response.ok) throw new Error('Network response was not ok');
+                const data = await response.json();
+                responseDiv.innerHTML = formatResponse(data);
+            } catch (error) {
+                responseDiv.innerHTML = `<div class="analysis-section error">
+                    <strong>Error:</strong> ${error.message}
+                </div>`;
+            }
+        };
+    </script>
+</body>
+</html>

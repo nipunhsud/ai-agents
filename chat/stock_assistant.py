@@ -17,7 +17,6 @@ from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_google_community import GmailToolkit
 from langchain_core.tools import tool
 import os
-from IPython.display import Image, display
 from langchain_community.tools.google_finance import GoogleFinanceQueryRun
 from langchain_community.utilities.google_finance import GoogleFinanceAPIWrapper
 from langchain_community.tools.google_trends import GoogleTrendsQueryRun

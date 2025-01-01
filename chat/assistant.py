@@ -1,6 +1,6 @@
 from openai import OpenAI
 import os
-from typing import override
+from typing_extensions import override
 from openai import AssistantEventHandler
 import json
 

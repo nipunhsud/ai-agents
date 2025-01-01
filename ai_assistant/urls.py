@@ -22,6 +22,7 @@ urlpatterns = [
     path("slack2/",handle_message, name='slack_message'),
     path("assistant/",views.AssistantView.as_view(), name='assistant'),
     path("email_assistant/",views.EmailAssistantView.as_view(), name='email_assistant'),
+    path('analyst/', views.quant_analyst_page, name='quant_analyst_page'),
     path("stock_assistant/",views.StockAssistantView.as_view(), name='stock_assistant'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 

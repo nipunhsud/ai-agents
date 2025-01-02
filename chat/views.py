@@ -384,7 +384,14 @@ class StockAssistantView(View):
         try:
             result,json_data = stock_generator(user_input)
         
-            return JsonResponse({'response': json_data})
+             # Return both the JSON data and markdown result with appropriate content type
+            response = JsonResponse({
+                'response': json_data, 
+                'markdown': result,
+                'content_type': 'text/markdown'
+            })
+            response['Content-Type'] = 'application/json'
+            return response
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
 

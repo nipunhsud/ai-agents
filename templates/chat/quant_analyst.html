@@ -70,7 +70,28 @@
         .metric div {
             margin: 8px 0;
         }
+        .print-controls {
+            margin-top: 20px;
+            text-align: right;
+        }
+        .print-button {
+            padding: 10px 20px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .print-button:hover {
+            background-color: #218838;
+        }
+        @media print {
+            .print-controls {
+                display: none !important;
+            }
+        }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
     <h1>Stock Analysis Assistant</h1>
@@ -87,9 +108,8 @@
     <script>
         function formatResponse(data) {
             try {
-                const analysis = JSON.parse(data.response);
+                const analysis = JSON.parse(data.response);   
                 const stockData = analysis.stock_summary;
-                
                 return `
                     <div class="analysis-section">
                         <h2>Stock Analysis - ${stockData.ticker}</h2>
@@ -204,12 +224,51 @@
                 if (!response.ok) throw new Error('Network response was not ok');
                 const data = await response.json();
                 responseDiv.innerHTML = formatResponse(data);
+                if (data.markdown) {                     
+                    responseDiv.innerHTML += `
+                        <div id="markdown-content">
+                            ${marked.parse(data.markdown)}
+                            <div class="print-controls">
+                                <button onclick="printMarkdownContent()" class="print-button">Print Analysis</button>
+                            </div>
+                        </div>`;                 
+                }
             } catch (error) {
                 responseDiv.innerHTML = `<div class="analysis-section error">
                     <strong>Error:</strong> ${error.message}
                 </div>`;
             }
         };
+
+        function printMarkdownContent() {
+            const content = document.getElementById('markdown-content');
+            const originalContent = document.body.innerHTML;
+            
+            // Temporarily replace body content with just the markdown content
+            document.body.innerHTML = content.innerHTML;
+            
+            // Remove the print button from the print view
+            const printButton = document.querySelector('.print-controls');
+            if (printButton) {
+                printButton.style.display = 'none';
+            }
+            
+            // Print
+            window.print();
+            
+            // Restore original content
+            document.body.innerHTML = originalContent;
+            
+            // Reattach event listeners
+            attachEventListeners();
+        }
+
+        function attachEventListeners() {
+            // Reattach form submit handler
+            document.getElementById('reactForm').onsubmit = async function(event) {
+                // ... existing form submit code ...
+            };
+        }
     </script>
 </body>
 </html>

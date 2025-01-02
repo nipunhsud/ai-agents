@@ -20,17 +20,18 @@
             background-color: #f9f9f9;
         }
         .metric {
-            margin: 10px 0;
-            padding: 10px;
+            margin: 15px 0;
+            padding: 15px;
             background-color: white;
             border-left: 4px solid #007bff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .metric-title {
-            font-weight: bold;
-            color: #333;
+            font-weight: 600;
+            color: #444;
         }
         .metric-value {
-            margin-left: 10px;
+            margin-left: 8px;
             color: #666;
         }
         #response {
@@ -55,8 +56,8 @@
             border-radius: 5px;
         }
         .metric h3 {
-            color: #0056b3;
-            margin: 10px 0;
+            color: #007bff;
+            margin: 0 0 10px 0;
             font-size: 1.1em;
         }
         .metric ul {
@@ -90,6 +91,37 @@
                 display: none !important;
             }
         }
+        .moving-averages .ema-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 8px;
+        }
+        .tech-grid, .financial-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 10px;
+        }
+        .financial-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+        .action-items {
+            display: grid;
+            gap: 10px;
+        }
+        .conclusion {
+            border-left: 4px solid #28a745;
+        }
+        .summary-grid {
+            display: grid;
+            gap: 15px;
+        }
+        .outlook {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
@@ -112,88 +144,84 @@
                 const stockData = analysis.stock_summary;
                 return `
                     <div class="analysis-section">
-                        <h2>Stock Analysis - ${stockData.ticker}</h2>
+                        <h2>📊 ${stockData.ticker} Analysis</h2>
                         
                         <div class="metric">
-                            <span class="metric-title">Current Price:</span>
+                            <span class="metric-title">💵 Price:</span>
                             <span class="metric-value">$${stockData.current_price}</span>
                         </div>
 
                         <div class="metric">
-                            <span class="metric-title">Buy Point:</span>
+                            <span class="metric-title">🎯 Buy Point:</span>
                             <span class="metric-value">${stockData.buy_point.consideration}</span>
                         </div>
 
                         <div class="metric">
-                            <span class="metric-title">Target Price:</span>
+                            <span class="metric-title">📈 Target:</span>
                             <span class="metric-value">${stockData.target_price}</span>
                         </div>
 
                         <div class="metric">
-                            <h3>Supply and Demand</h3>
+                            <h3>📊 Supply & Demand</h3>
                             <div>
-                                <span class="metric-title">Volume Analysis:</span>
+                                <span class="metric-title">📈 Volume:</span>
                                 <span class="metric-value">${stockData.supply_and_demand.volume_analysis}</span>
                             </div>
-                            <div>
-                                <span class="metric-title">Moving Averages:</span>
-                                <ul>
-                                    <li>50 Day EMA: ${stockData.supply_and_demand.moving_averages.day_ema_50}</li>
-                                    <li>150 Day EMA: ${stockData.supply_and_demand.moving_averages.day_ema_150}</li>
-                                    <li>200 Day EMA: ${stockData.supply_and_demand.moving_averages.day_ema_200}</li>
-                                </ul>
+                            <div class="moving-averages">
+                                <span class="metric-title">📉 EMAs:</span>
+                                <div class="ema-grid">
+                                    <div>50d: ${stockData.supply_and_demand.moving_averages.day_ema_50}</div>
+                                    <div>150d: ${stockData.supply_and_demand.moving_averages.day_ema_150}</div>
+                                    <div>200d: ${stockData.supply_and_demand.moving_averages.day_ema_200}</div>
+                                </div>
                             </div>
                         </div>
 
                         <div class="metric">
-                            <h3>Technical Analysis</h3>
-                            <div>
-                                <span class="metric-title">Market Direction:</span>
-                                <span class="metric-value">${stockData.technical_analysis.market_direction}</span>
-                            </div>
-                            <div>
-                                <span class="metric-title">EPS Growth:</span>
-                                <span class="metric-value">${stockData.technical_analysis.eps_growth}</span>
-                            </div>
-                        </div>
-
-                        <div class="metric">
-                            <h3>Financial Analysis</h3>
-                            <div>
-                                <span class="metric-title">Quarterly Revenue:</span>
-                                <span class="metric-value">${stockData.quarterly_earnings_analysis.quarterly_revenue}</span>
-                            </div>
-                            <div>
-                                <span class="metric-title">Quarterly Net Income:</span>
-                                <span class="metric-value">${stockData.quarterly_earnings_analysis.quarterly_net_income}</span>
-                            </div>
-                            <div>
-                                <span class="metric-title">Quarterly EPS:</span>
-                                <span class="metric-value">${stockData.quarterly_earnings_analysis.quarterly_eps}</span>
+                            <h3>📈 Technical</h3>
+                            <div class="tech-grid">
+                                <div>
+                                    <span class="metric-title">🎯 Market:</span>
+                                    <span class="metric-value">${stockData.technical_analysis.market_direction}</span>
+                                </div>
+                                <div>
+                                    <span class="metric-title">📈 EPS:</span>
+                                    <span class="metric-value">${stockData.technical_analysis.eps_growth}</span>
+                                </div>
                             </div>
                         </div>
 
                         <div class="metric">
-                            <h3>Recommendations</h3>
-                            <div>
-                                <span class="metric-title">Considerations:</span>
-                                <span class="metric-value">${stockData.recommendations.considerations}</span>
-                            </div>
-                            <div>
-                                <span class="metric-title">Action Items:</span>
-                                <span class="metric-value">${stockData.recommendations.recommendations_for_action}</span>
+                            <h3>💰 Financials</h3>
+                            <div class="financial-grid">
+                                <div>📈 Revenue: ${stockData.quarterly_earnings_analysis.quarterly_revenue}</div>
+                                <div>💵 Net Income: ${stockData.quarterly_earnings_analysis.quarterly_net_income}</div>
+                                <div>📊 EPS: ${stockData.quarterly_earnings_analysis.quarterly_eps}</div>
                             </div>
                         </div>
 
                         <div class="metric">
-                            <h3>Conclusion</h3>
-                            <div>
-                                <span class="metric-title">Summary:</span>
-                                <span class="metric-value">${stockData.conclusion.summary}</span>
+                            <h3>🎯 Actions</h3>
+                            <div class="action-items">
+                                <div>
+                                    <span class="metric-title">💭 Consider:</span>
+                                    <span class="metric-value">${stockData.recommendations.considerations}</span>
+                                </div>
+                                <div>
+                                    <span class="metric-title">⚡ Action:</span>
+                                    <span class="metric-value">${stockData.recommendations.recommendations_for_action}</span>
+                                </div>
                             </div>
-                            <div>
-                                <span class="metric-title">Investment Outlook:</span>
-                                <span class="metric-value">${stockData.conclusion.investment_outlook}</span>
+                        </div>
+
+                        <div class="metric conclusion">
+                            <h3>📝 Summary</h3>
+                            <div class="summary-grid">
+                                <div>${stockData.conclusion.summary}</div>
+                                <div class="outlook">
+                                    <span class="metric-title">🔮 Outlook:</span>
+                                    <span class="metric-value">${stockData.conclusion.investment_outlook}</span>
+                                </div>
                             </div>
                         </div>
                     </div>`;

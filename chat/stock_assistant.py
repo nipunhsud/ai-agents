@@ -50,7 +50,7 @@ def handle_tool_error(state: dict) -> dict:
 def get_financial_growth(stock_ticker: str, period: str) -> dict:
     """Get real-time stock quote data."""
     api_key = os.getenv("FMP_API_KEY")
-    url = f"https://financialmodelingprep.com/api/v3/financial-growth/{stock_ticker}?period={period}&apikey={api_key}"
+    url = f"https://financialmodelingprep.com/api/v3/financial-growth/{stock_ticker}?period={period}&limit=3&apikey={api_key}"
     
     response = requests.get(url)
     if response.status_code == 200:
@@ -79,7 +79,7 @@ def get_stock_listings() -> dict:
     print(response.json())
     if response.status_code == 200:
         data = response.json()
-        return data[0] if data else None
+        return data if data else None
     return None
 
 def get_stock_ma(stock_ticker: str, period: int) -> dict:
@@ -91,18 +91,18 @@ def get_stock_ma(stock_ticker: str, period: int) -> dict:
     # print(response.json())
     if response.status_code == 200:
         data = response.json()
-        return data[0] if data else None
+        return data[:10] if data else None
     return None
 
 def get_income_statement_by_period(stock_ticker: str, period: str) -> dict:
     """Get real-time stock quote data."""
     api_key = os.getenv("FMP_API_KEY")
-    url = f"https://financialmodelingprep.com/api/v3/income-statement/{stock_ticker}?period={period}&apikey={api_key}"
+    url = f"https://financialmodelingprep.com/api/v3/income-statement/{stock_ticker}?period={period}&limit=3&apikey={api_key}"
     
     response = requests.get(url)
     if response.status_code == 200:
         data = response.json()
-        return data[0] if data else None
+        return data if data else None
     return None
 
 def get_institutional_ownership(stock_ticker: str) -> dict:
@@ -113,9 +113,18 @@ def get_institutional_ownership(stock_ticker: str) -> dict:
     response = requests.get(url)
     if response.status_code == 200:
         data = response.json()
-        return data[0] if data else None
+        return data if data else None
     return None
 
+def get_sector_performance():
+    api_key = os.getenv("FMP_API_KEY")
+    url = f"https://financialmodelingprep.com/api/v3/sectors-performance?apikey={api_key}"
+    
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        return data if data else None
+    return None
 google_finance_tool = GoogleFinanceQueryRun(api_wrapper=GoogleFinanceAPIWrapper())
 google_trends_tool = GoogleTrendsQueryRun(api_wrapper=GoogleTrendsAPIWrapper())
 yahoo_finance_tool = YahooFinanceNewsTool()
@@ -149,17 +158,22 @@ financial_growth_tool = StructuredTool.from_function(
     name="quarterly_financial_growth",
     description="Get real-time quarterly/annual financial growth data for a given ticker symbol"
 )
-
+sector_performance_tool = StructuredTool.from_function(
+    func=get_sector_performance,
+    name="sector_performance",
+    description="Get real-time sector performance data"
+)
 tools = [
-    tavily_tool, 
-    google_finance_tool, 
-    google_trends_tool, 
+    # tavily_tool, 
+    # google_finance_tool, 
+    # google_trends_tool, 
     stock_quote_tool, 
-    stock_listings_tool, 
+    # stock_listings_tool, 
     stock_ma_tool, 
     income_statement_tool, 
-    institutional_ownership_tool, 
-    financial_growth_tool
+    # institutional_ownership_tool, 
+    # financial_growth_tool,
+    sector_performance_tool
 ]
 chat = ChatOpenAI(
     temperature=0.7,
@@ -286,6 +300,7 @@ Your job is to help the user with their stock trading questions using the follow
    - Look for stocks that are in a leading industry
    - Look for stocks that have strong demand
    - Look for stocks that are in a tight area and have high volume
+   - Look for stocks that are in a leading industry and sector performance is good. Use sector_performance_tool tool to get the sector performance data
     
 10. Volume should be high or increasing:
     - Use the stock_quote_tool tool to get the real-time stock volume data and compare it to the previous 5 days volume, also compare it to the average volume for the stock
@@ -404,6 +419,7 @@ def stock_generator(content):
         markdown_data = result['messages'][-1].content.split("\n\n```json\n")[0]
         print(json_data)
         print(markdown_data)
+        # price_history = get_stock_ma(content, 30)
     except Exception as e:
         print(f"Could not serialize graph: {e}")
     return markdown_data, json_data

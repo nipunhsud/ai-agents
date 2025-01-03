@@ -15,7 +15,6 @@ from .announcement_generator import SlackAnnouncementGenerator
 from .planner import get_channels_information,agdum,get_users_information,publish_announcements
 
 # Initialize client with bot token
-#client = WebClient(token="xapp-1-A083ANP1W90-8135576493568-70c6c216693ac25b54574943f7ce09aece6becaf41eb2f05707d901f4df7dcc2")
 ssl_context = ssl.create_default_context(cafile=certifi.where())
 slack_token =  os.getenv('SLACK_TOKEN')
 client = WebClient(

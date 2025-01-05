@@ -12,6 +12,7 @@ from django.core.files.storage import default_storage
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.csrf import csrf_protect
+from django.utils.decorators import method_decorator
 
 from .agent import Agent
 from .models import Message
@@ -23,6 +24,7 @@ from .technical_writer import TechnicalWriter, DocumentType, OutputFormat
 from .assistant import Assistant
 from .email_assistant import email_generator
 from .stock_assistant import stock_generator
+from .decorators import firebase_auth_required
 
 logger = logging.getLogger(__name__)
 
@@ -97,10 +99,12 @@ def upload_page(request):
         logger.error(f"Error rendering upload page: {str(e)}")
         return JsonResponse({'error': str(e)}, status=500)
 
-@login_required
+@firebase_auth_required
 def react_page(request):
     logger.debug(f"User {request.user} accessing react page")
     try:
+        # Access Firebase user info if needed
+        firebase_user = request.firebase_user
         return render(request, 'chat/react.html')
     except Exception as e:
         logger.error(f"Error rendering react page: {str(e)}")
@@ -360,10 +364,13 @@ class AssistantView(View):
         # Return the response as JSON
         return JsonResponse({'response': "ok"})
     
+@method_decorator(login_required, name='dispatch')
 class EmailAssistantView(View):
     def post(self, request):
+        if not request.user.is_authenticated:
+            return JsonResponse({'error': 'Authentication required'}, status=401)
+        
         user_input = request.POST.get('input', '')
-
         if not user_input:
             return JsonResponse({'error': 'Input cannot be empty.'}, status=400)
 
@@ -383,13 +390,13 @@ class StockAssistantView(View):
             return JsonResponse({'error': 'Input cannot be empty.'}, status=400)
 
         try:
-            #result,json_data = stock_generator(user_input)
-            result = "ok"
-            json_data = "ok"
+            result,json_data,price_history = stock_generator(user_input)
+        
              # Return both the JSON data and markdown result with appropriate content type
             response = JsonResponse({
                 'response': json_data, 
                 'markdown': result,
+                'price_history': price_history,
                 'content_type': 'text/markdown'
             })
             response['Content-Type'] = 'application/json'

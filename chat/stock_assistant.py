@@ -50,7 +50,7 @@ def handle_tool_error(state: dict) -> dict:
 def get_financial_growth(stock_ticker: str, period: str) -> dict:
     """Get real-time stock quote data."""
     api_key = os.getenv("FMP_API_KEY")
-    url = f"https://financialmodelingprep.com/api/v3/financial-growth/{stock_ticker}?period={period}&limit=3&apikey={api_key}"
+    url = f"https://financialmodelingprep.com/api/v3/financial-growth/{stock_ticker}?period={period}&limit=10&apikey={api_key}"
     
     response = requests.get(url)
     if response.status_code == 200:
@@ -97,7 +97,7 @@ def get_stock_ma(stock_ticker: str, period: int) -> dict:
 def get_income_statement_by_period(stock_ticker: str, period: str) -> dict:
     """Get real-time stock quote data."""
     api_key = os.getenv("FMP_API_KEY")
-    url = f"https://financialmodelingprep.com/api/v3/income-statement/{stock_ticker}?period={period}&limit=3&apikey={api_key}"
+    url = f"https://financialmodelingprep.com/api/v3/income-statement/{stock_ticker}?period={period}&limit=10&apikey={api_key}"
     
     response = requests.get(url)
     if response.status_code == 200:
@@ -116,7 +116,7 @@ def get_institutional_ownership(stock_ticker: str) -> dict:
         return data if data else None
     return None
 
-def get_sector_performance():
+def get_industry_performance():
     api_key = os.getenv("FMP_API_KEY")
     url = f"https://financialmodelingprep.com/api/v3/sectors-performance?apikey={api_key}"
     
@@ -125,6 +125,17 @@ def get_sector_performance():
         data = response.json()
         return data if data else None
     return None
+
+def get_company_outlook(stock_ticker: str) -> dict:
+    api_key = os.getenv("FMP_API_KEY")
+    url = f"https://financialmodelingprep.com/api/v4/company-outlook?symbol={stock_ticker}&apikey={api_key}"
+    
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        return data if data else None
+    return None
+
 google_finance_tool = GoogleFinanceQueryRun(api_wrapper=GoogleFinanceAPIWrapper())
 google_trends_tool = GoogleTrendsQueryRun(api_wrapper=GoogleTrendsAPIWrapper())
 yahoo_finance_tool = YahooFinanceNewsTool()
@@ -159,7 +170,7 @@ financial_growth_tool = StructuredTool.from_function(
     description="Get real-time quarterly/annual financial growth data for a given ticker symbol"
 )
 sector_performance_tool = StructuredTool.from_function(
-    func=get_sector_performance,
+    func=get_industry_performance,
     name="sector_performance",
     description="Get real-time sector performance data"
 )
@@ -284,7 +295,7 @@ Your job is to help the user with their stock trading questions using the follow
 4. Supply and Demand: Favor stocks with strong demand using volume data (higher than average trading volume is preffered) and also comparing google trends. Use given tools to compare current volume to 52 week average volume and provide analysis on volume trends.
 5. Leader or Laggard: Focus on leading stocks in leading industries. Use given tools to get analysis on the stock and industry leadership
 6. Institutional Sponsorship: Stocks with increasing institutional ownership.
-7. Market Direction: The overall market should be in an uptrend. Query for QQQ or SPY to get the market direction. Series of higher highs and higher lows is preferred.
+7. Market Direction: Analyze the price action of QQQ and SPY to get the market direction. Series of higher highs and higher lows is preferred.
 8. Trend Analysis:
    - Analyze the trend of the stock - A series of higher highs and higher lows
    - Look for reversal patterns like double bottom, triple bottom, head and shoulders, volatility contraction pattern etc.
@@ -326,8 +337,11 @@ When responding to queries:
 10. Use the stock_ma_tool tool to get the real-time stock moving average data for a given ticker symbol and period
 11. Use the income_statement_tool tool to get the real-time income statement data for a given ticker symbol
 12. Use the institutional_ownership_tool tool to get the real-time institutional ownership data for a given ticker symbol
-13. Provide the buy point for the stock when the stock is in a strong uptrend and the volume is high or increasing otherwise the stock is not a good buy
-14. Always provide the Target Price for the stock, this should be 15-20% from buy point
+13. Provide the buy point for the stock 
+    - when the stock is in a strong uptrend and the volume is high or increasing
+    - Also provide a buy point which will likely be a breakout point and has low supply to the left of the chart.
+    - If stock prices is below 8% of 52 week high and low volatility, then recommend stock is a good buy. If more than 8% and less than 12% to wait otherwise watch
+14. Always provide the Target Price for the stock, this should be 15-20% from buy point. Ensure this is a reasonable target price and not too high or too low. and points at the next possible supply point.
 15. Always provide the Supply and Demand analysis
 16. Always provide the Top Related Queries from google trends tool when available
 17. Always provide the Rising Related Queries  from google trends tool when available
@@ -336,62 +350,73 @@ Remember, your goal is to provide accurate, insightful financial analysis to
 help users make informed decisions. Always maintain a professional and objective tone in your responses.
 
 
-Follow this example to return the response:
-Below is the detailed trading strategy and stock summary for NVIDIA Corporation (NVDA): ### Buy Point - **Current Stock Price**: $134.41 - **Buy Point Consideration**: Given that the current price is within 5% of the 52-week high of $152.89, it may be considered as a potential buy point if other conditions align. ### Target Price - **Target Price**: A reasonable target price could be set around the 52-week high at $152.89, considering the current market trends and historical highs. ### Supply and Demand - **Volume Analysis**: Current volume is at 109,261,501, which is lower than the average volume of 223,105,704. This indicates a lack of strong demand at the moment. - **Moving Averages**: - 50-day EMA: 136.45 - 150-day EMA: 123.69 - 200-day EMA: 116.47 - The stock is currently trading above the 150-day and 200-day EMAs, suggesting strong support levels. ### Tight Areas - The stock is trading near its highs with low volatility, indicating potential consolidation. ### Technical Analysis - **Market Direction**: The overall market appears to be in a positive trend with the 150-day EMA above the 200-day EMA and the 50-day EMA above the 150-day EMA. - **EPS Growth**: Positive quarterly EPS growth of 16.18% signals accelerating earnings. ### Google Trends - **Market Trends**: NVDA has been trending upwards with a significant increase in interest. - **Top Related Queries**: nvda price, nvda earnings, nvda nasdaq - **Rising Related Queries**: djt stock price, nvda robinhood, nvda split ### Stock Quote - **Current Stock Price**: $134.41 - **Change**: -2.24% - **Market Cap**: $3.29 trillion - **Volume**: 109,261,501 - **52 Week High/Low**: $152.89 / $47.32 - **Earnings Per Share**: $2.53 - **Price to Earnings Ratio**: 53.13 - **Next Earnings Announcement**: February 26, 2025 - **Institutional Ownership**: Data not available ### Earnings and Financial Growth - **Annual Revenue Growth**: NVDA's revenue grew to $60.92 billion in the fiscal year 2024. - **Annual EPS Growth**: 1.21 USD in 2024. - **Quarterly Revenue Growth**: 16.78% in Q3 2025. - **Quarterly EPS Growth**: 16.18% in Q3 2025. ### Recommendations - **Considerations**: The stock is a potential buy given its strong earnings growth, favorable technical indicators, and trending interest, but be cautious of current volume, which is lower than average. - **Recommendations for Action**: Consider entering when volume increases or if there is a breakout above the current resistance levels. ### Conclusion - **Summary**: NVDA is showing strong financial growth and positive market interest, making it a potentially attractive investment. However, traders should be cautious of the current low trading volume and wait for confirmation of demand before significant entry. - **Investment Outlook**: Positive, with potential for growth given the right market conditions and increased volume. By considering the above factors, you can make an informed decision on trading NVDA. Always continue monitoring market conditions and updates related to this stock.
+# Follow this example to return the response:
+# Below is the detailed trading strategy and stock summary for NVIDIA Corporation (NVDA): ### Buy Point - 
+# **Current Stock Price**: $134.41 - 
+# **Buy Point Consideration**: 
+# ### Supply and Demand - **Volume Analysis**: Current volume is at 109,261,501, which is lower than the average volume of 223,105,704. This indicates a lack of strong demand at the moment. 
+# - **Moving Averages**: - 50-day EMA: 136.45 - 150-day EMA: 123.69 - 200-day EMA: 116.47 - The stock is currently trading above the 150-day and 200-day EMAs, suggesting strong support levels. 
+# ### Tight Areas - The stock is trading near its highs with low volatility, indicating potential consolidation. ### Technical Analysis - **Market Direction**: The overall market appears to be in a positive trend with the 150-day EMA above the 200-day EMA and the 50-day EMA above the 150-day EMA. - **EPS Growth**: Positive quarterly EPS growth of 16.18% signals accelerating earnings. 
+# ### Google Trends - **Market Trends**: NVDA has been trending upwards with a significant increase in interest. - **Top Related Queries**: nvda price, nvda earnings, nvda nasdaq - **Rising Related Queries**: djt stock price, nvda robinhood, nvda split ### Stock Quote - **Current Stock Price**: $134.41 - **Change**: -2.24% - **Market Cap**: $3.29 trillion - **Volume**: 109,261,501 - **52 Week High/Low**: $152.89 / $47.32 - **Earnings Per Share**: $2.53 - **Price to Earnings Ratio**: 53.13 - **Next Earnings Announcement**: February 26, 2025 - **Institutional Ownership**: Data not available ### Earnings and Financial Growth - **Annual Revenue Growth**: NVDA's revenue grew to $60.92 billion in the fiscal year 2024. - **Annual EPS Growth**: 1.21 USD in 2024. - **Quarterly Revenue Growth**: 16.78% in Q3 2025. - **Quarterly EPS Growth**: 16.18% in Q3 2025. 
+# ### Industry Leadership" - GOOGL is a leading stock in the technology industry, with a strong market position and a history of innovation.
+# ### New Product or Service - Google Gemini is a new product that is being launched by Google
+# ### Quarterly Earnings Analysis - 2.14 in xyz quarter and growth of 27.23%
+# ### Stock in the news - Google Gemini is a new product that is being launched by Google
+# ### Recommendations - **Considerations**: The stock is a potential buy given its strong earnings growth, favorable technical indicators, and trending interest, but be cautious of current volume, which is lower than average. - **Recommendations for Action**: Consider entering when volume increases or if there is a breakout above the current resistance levels. ### Conclusion - **Summary**: NVDA is showing strong financial growth and positive market interest, making it a potentially attractive investment. However, traders should be cautious of the current low trading volume and wait for confirmation of demand before significant entry. - **Investment Outlook**: Positive, with potential for growth given the right market conditions and increased volume. By considering the above factors, you can make an informed decision on trading NVDA. Always continue monitoring market conditions and updates related to this stock.
 
 
-Also Return the response in json format for example
+# Also Return the response in json format for example
 
-{
-  "stock_summary": {
-    "ticker": "GOOGL",
-    "current_price": 189.3,
-    "buy_point": {
-      "consideration": "The current price is within 6% of the 52-week high of $201.42, making it a potential buy point if other conditions align."
-    },
-    "target_price": "A reasonable target price could be set around 15-20% above the buy point, approximately $217.69 to $227.16.",
-    "industry_leader": "GOOGL is a leading stock in the technology industry, with a strong market position and a history of innovation.",
-    "supply_and_demand": {
-      "volume_analysis": "Current volume is at 17,396,853, which is lower than the average volume of 27,419,177.",
-      "moving_averages": {
-        "day_ema_50": 180.15,
-        "day_ema_150": 170.56,
-        "day_ema_200": 166.87
-      },
-      "google_trends": {
-        "market_trends": "The stock is trending upwards with a significant increase in interest.",
-        "top_related_queries": ["nvda price", "nvda earnings", "nvda nasdaq"],
-        "rising_related_queries": ["djt stock price", "nvda robinhood", "nvda split"]
-      },
-      "support_levels": "The stock is currently trading above the 50-day, 150-day, and 200-day EMAs, suggesting strong support levels."
-    },
-    "tight_areas": "The stock is trading near its highs with low volatility, indicating potential consolidation.",
-    "technical_analysis": {
-      "market_direction": "The overall market appears to be in a positive trend with the 150-day EMA above the 200-day EMA and the 50-day EMA above the 150-day EMA.",
-      "eps_growth": "Positive quarterly EPS growth of 27.23% signals accelerating earnings."
-    },
-    "quarterly_earnings_analysis": {
-      "quarterly_revenue": "88.27 billion USD",
-      "quarterly_net_income": "26.30 billion USD",
-      "quarterly_eps": 2.14 in xyz quarter and growth of 27.23%
-    },
-    "annual_financial_growth": {
-      "annual_eps_growth": "27.23% in 2023",
-      "annual_revenue_growth": "8.68% in 2023"
-    },
-    "new_product_or_service": {
-      "new_product_or_service": "Goolgles Gemini is a new product that is being launched by Google",
-    },
-    "recommendations": {
-      "considerations": "The stock is a potential buy given its strong earnings growth, favorable technical indicators, and trending interest, but be cautious of current volume, which is lower than average.",
-      "recommendations_for_action": "Consider entering when volume increases or if there is a breakout above the current resistance levels."
-    },
-    "conclusion": {
-      "summary": "GOOGL is showing strong financial growth and positive market interest, making it a potentially attractive investment.",
-      "investment_outlook": "Positive "
-    }
-  }
-}
+# {
+#   "stock_summary": {
+#     "ticker": "GOOGL",
+#     "current_price": 189.3,
+#     "buy_point": {
+#       "consideration": "The current price is within 6% of the 52-week high of $201.42, making it a potential buy point if other conditions align."
+#     },
+#     "target_price": "",
+#     "industry_leader": "GOOGL is a leading stock in the technology industry, with a strong market position and a history of innovation.",
+#     "supply_and_demand": {
+#       "volume_analysis": "Current volume is at 17,396,853, which is lower than the average volume of 27,419,177.",
+#       "moving_averages": {
+#         "day_ema_50": 180.15,
+#         "day_ema_150": 170.56,
+#         "day_ema_200": 166.87
+#       },
+#       "google_trends": {
+#         "market_trends": "The stock is trending upwards with a significant increase in interest.",
+#         "top_related_queries": ["nvda price", "nvda earnings", "nvda nasdaq"],
+#         "rising_related_queries": ["djt stock price", "nvda robinhood", "nvda split"]
+#       },
+#       "support_levels": "The stock is currently trading above the 50-day, 150-day, and 200-day EMAs, suggesting strong support levels."
+#     },
+#     "tight_areas": "The stock is trading near its highs with low volatility, indicating potential consolidation.",
+#     "technical_analysis": {
+#       "market_direction": "Market Direction: Analyze the price action of QQQ and SPY to get the market direction. Series of higher highs and higher lows is preferred.",
+#       "eps_growth": "Positive quarterly EPS growth of 27.23% signals accelerating earnings."
+#     },
+#     "quarterly_earnings_analysis": {
+#       "quarterly_revenue": "88.27 billion USD",
+#       "quarterly_net_income": "26.30 billion USD",
+#       "quarterly_eps": 2.14 in xyz quarter and growth of 27.23%
+#     },
+#     "annual_financial_growth": {
+#       "annual_eps_growth": "27.23% in 2023",
+#       "annual_revenue_growth": "8.68% in 2023"
+#     },
+#     "new_product_or_service": {
+#       "new_product_or_service": "Goolgles Gemini is a new product that is being launched by Google",
+#     },
+#     "recommendations": {
+#       "considerations": "The stock is a potential buy given its strong earnings growth, favorable technical indicators, and trending interest, but be cautious of current volume, which is lower than average.",
+#       "recommendations_for_action": "Consider entering when volume increases or if there is a breakout above the current resistance levels."
+#     },
+#     "conclusion": {
+#       "summary": "GOOGL is showing strong financial growth and positive market interest, making it a potentially attractive investment.",
+#       "investment_outlook": "Positive "
+#     }
+#   }
+# }
 
 Provide options and explanations for your suggestions."""
 
@@ -419,7 +444,7 @@ def stock_generator(content):
         markdown_data = result['messages'][-1].content.split("\n\n```json\n")[0]
         print(json_data)
         print(markdown_data)
-        # price_history = get_stock_ma(content, 30)
+        price_history = get_stock_ma(content, 30)
     except Exception as e:
         print(f"Could not serialize graph: {e}")
-    return markdown_data, json_data
+    return markdown_data, json_data, price_history

@@ -1,2 +1,5 @@
 .env
 *.pyc
+firebase-credentials.json
+credentials.json
+token.pickle

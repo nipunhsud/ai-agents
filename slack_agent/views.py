@@ -18,7 +18,6 @@ from .planner import get_channels_information,agdum,get_users_information,publis
 ssl_context = ssl.create_default_context(cafile=certifi.where())
 slack_token =  os.getenv('SLACK_TOKEN')
 client = WebClient(
-    #token='xoxb-8032017402916-8106281877078-l0ixOdLfA8MMZeHjsO1fJlHR',
     token = slack_token,
     ssl=ssl_context
 )

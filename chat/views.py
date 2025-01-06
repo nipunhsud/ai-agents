@@ -20,7 +20,9 @@ from .models import Conversation
 from .gift_agent import gift_prediction
 from .document_processor import DocumentProcessor
 from .technical_writer import TechnicalWriter, DocumentType, OutputFormat
-
+from .assistant import Assistant
+from .email_assistant import email_generator
+from .stock_assistant import stock_generator
 
 logger = logging.getLogger(__name__)
 
@@ -338,3 +340,67 @@ async def technical_writer_view(request):
                 'error': str(e)
             }, status=500)  # Added status code for errors
         
+
+class AssistantView(View):
+    def post(self, request):
+        user_input = request.POST.get('input', '')
+
+        if not user_input:
+            return JsonResponse({'error': 'Input cannot be empty.'}, status=400)
+
+        # Instantiate the AIReActAgent
+        try:
+            assistant = Assistant()
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+        # Run the agent with the user input
+        assistant.add_message(user_input)
+        stream = assistant.run_assistant()
+        # Return the response as JSON
+        return JsonResponse({'response': "ok"})
+    
+class EmailAssistantView(View):
+    def post(self, request):
+        user_input = request.POST.get('input', '')
+
+        if not user_input:
+            return JsonResponse({'error': 'Input cannot be empty.'}, status=400)
+
+        try:
+            #stream = email_generator(user_input)
+            #email_response = stream.content
+            email_response = "ok"
+            return JsonResponse({'response': email_response})
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+        
+class StockAssistantView(View):
+    def post(self, request):
+        user_input = request.POST.get('input', '')
+
+        if not user_input:
+            return JsonResponse({'error': 'Input cannot be empty.'}, status=400)
+
+        try:
+            #result,json_data = stock_generator(user_input)
+            result = "ok"
+            json_data = "ok"
+             # Return both the JSON data and markdown result with appropriate content type
+            response = JsonResponse({
+                'response': json_data, 
+                'markdown': result,
+                'content_type': 'text/markdown'
+            })
+            response['Content-Type'] = 'application/json'
+            return response
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+def quant_analyst_page(request):
+    logger.debug(f"User {request.user} accessing react page")
+    try:
+        return render(request, 'chat/quant_analyst.html')
+    except Exception as e:
+        logger.error(f"Error rendering react page: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)

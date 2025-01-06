@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Analysis Assistant</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .analysis-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .metric {
+            margin: 15px 0;
+            padding: 15px;
+            background-color: white;
+            border-left: 4px solid #007bff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .metric-title {
+            font-weight: 600;
+            color: #444;
+        }
+        .metric-value {
+            margin-left: 8px;
+            color: #666;
+        }
+        #response {
+            margin-top: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .metric h3 {
+            color: #007bff;
+            margin: 0 0 10px 0;
+            font-size: 1.1em;
+        }
+        .metric ul {
+            margin: 5px 0 5px 20px;
+            padding: 0;
+        }
+        .metric ul li {
+            margin: 5px 0;
+            color: #666;
+        }
+        .metric div {
+            margin: 8px 0;
+        }
+        .print-controls {
+            margin-top: 20px;
+            text-align: right;
+        }
+        .print-button {
+            padding: 10px 20px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .print-button:hover {
+            background-color: #218838;
+        }
+        @media print {
+            .print-controls {
+                display: none !important;
+            }
+        }
+        .moving-averages .ema-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 8px;
+        }
+        .tech-grid, .financial-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 10px;
+        }
+        .financial-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+        .action-items {
+            display: grid;
+            gap: 10px;
+        }
+        .conclusion {
+            border-left: 4px solid #28a745;
+        }
+        .summary-grid {
+            display: grid;
+            gap: 15px;
+        }
+        .outlook {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <h1>Stock Analysis Assistant</h1>
+    <form id="reactForm">
+        {% csrf_token %}
+        <label for="userInput">Enter Stock Ticker or Company Name:</label>
+        <textarea id="userInput" name="input" rows="2" placeholder="e.g., AAPL, MSFT, GOOGL" required></textarea>
+        <br>
+        <button type="submit">Analyze Stock</button>
+    </form>
+
+    <div id="response"></div>
+
+    <script>
+        function formatResponse(data) {
+            try {
+                const analysis = JSON.parse(data.response);   
+                const stockData = analysis.stock_summary;
+                return `
+                    <div class="analysis-section">
+                        <h2>📊 ${stockData.ticker} Analysis</h2>
+                        
+                        <div class="metric">
+                            <span class="metric-title">💵 Price:</span>
+                            <span class="metric-value">$${stockData.current_price}</span>
+                        </div>
+
+                        <div class="metric">
+                            <span class="metric-title">🎯 Buy Point:</span>
+                            <span class="metric-value">${stockData.buy_point.consideration}</span>
+                        </div>
+
+                        <div class="metric">
+                            <span class="metric-title">📈 Target:</span>
+                            <span class="metric-value">${stockData.target_price}</span>
+                        </div>
+
+                        <div class="metric">
+                            <h3>📊 Supply & Demand</h3>
+                            <div>
+                                <span class="metric-title">📈 Volume:</span>
+                                <span class="metric-value">${stockData.supply_and_demand.volume_analysis}</span>
+                            </div>
+                            <div class="moving-averages">
+                                <span class="metric-title">📉 EMAs:</span>
+                                <div class="ema-grid">
+                                    <div>50d: ${stockData.supply_and_demand.moving_averages.day_ema_50}</div>
+                                    <div>150d: ${stockData.supply_and_demand.moving_averages.day_ema_150}</div>
+                                    <div>200d: ${stockData.supply_and_demand.moving_averages.day_ema_200}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="metric">
+                            <h3>📈 Technical</h3>
+                            <div class="tech-grid">
+                                <div>
+                                    <span class="metric-title">🎯 Market:</span>
+                                    <span class="metric-value">${stockData.technical_analysis.market_direction}</span>
+                                </div>
+                                <div>
+                                    <span class="metric-title">📈 EPS:</span>
+                                    <span class="metric-value">${stockData.technical_analysis.eps_growth}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="metric">
+                            <h3>💰 Financials</h3>
+                            <div class="financial-grid">
+                                <div>📈 Revenue: ${stockData.quarterly_earnings_analysis.quarterly_revenue}</div>
+                                <div>💵 Net Income: ${stockData.quarterly_earnings_analysis.quarterly_net_income}</div>
+                                <div>📊 EPS: ${stockData.quarterly_earnings_analysis.quarterly_eps}</div>
+                            </div>
+                        </div>
+
+                        <div class="metric">
+                            <h3>🎯 Actions</h3>
+                            <div class="action-items">
+                                <div>
+                                    <span class="metric-title">💭 Consider:</span>
+                                    <span class="metric-value">${stockData.recommendations.considerations}</span>
+                                </div>
+                                <div>
+                                    <span class="metric-title">⚡ Action:</span>
+                                    <span class="metric-value">${stockData.recommendations.recommendations_for_action}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="metric conclusion">
+                            <h3>📝 Summary</h3>
+                            <div class="summary-grid">
+                                <div>${stockData.conclusion.summary}</div>
+                                <div class="outlook">
+                                    <span class="metric-title">🔮 Outlook:</span>
+                                    <span class="metric-value">${stockData.conclusion.investment_outlook}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+            } catch (e) {
+                console.log(e);
+                return `<div class="analysis-section">
+                    <pre style="white-space: pre-wrap;">${data.response}</pre>
+                </div>`;
+            }
+        }
+
+        document.getElementById('reactForm').onsubmit = async function(event) {
+            event.preventDefault();
+            const userInput = document.getElementById('userInput').value;
+            const responseDiv = document.getElementById('response');
+            responseDiv.innerHTML = '<div class="analysis-section">Analyzing stock data...</div>';
+
+            try {
+                const response = await fetch('/stock_assistant/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    },
+                    body: new URLSearchParams({ 'input': userInput })
+                });
+
+                if (!response.ok) throw new Error('Network response was not ok');
+                const data = await response.json();
+                responseDiv.innerHTML = formatResponse(data);
+                if (data.markdown) {                     
+                    responseDiv.innerHTML += `
+                        <div id="markdown-content">
+                            ${marked.parse(data.markdown)}
+                            <div class="print-controls">
+                                <button onclick="printMarkdownContent()" class="print-button">Print Analysis</button>
+                            </div>
+                        </div>`;                 
+                }
+            } catch (error) {
+                responseDiv.innerHTML = `<div class="analysis-section error">
+                    <strong>Error:</strong> ${error.message}
+                </div>`;
+            }
+        };
+
+        function printMarkdownContent() {
+            const content = document.getElementById('markdown-content');
+            const originalContent = document.body.innerHTML;
+            
+            // Temporarily replace body content with just the markdown content
+            document.body.innerHTML = content.innerHTML;
+            
+            // Remove the print button from the print view
+            const printButton = document.querySelector('.print-controls');
+            if (printButton) {
+                printButton.style.display = 'none';
+            }
+            
+            // Print
+            window.print();
+            
+            // Restore original content
+            document.body.innerHTML = originalContent;
+            
+            // Reattach event listeners
+            attachEventListeners();
+        }
+
+        function attachEventListeners() {
+            // Reattach form submit handler
+            document.getElementById('reactForm').onsubmit = async function(event) {
+                // ... existing form submit code ...
+            };
+        }
+    </script>
+</body>
+</html>

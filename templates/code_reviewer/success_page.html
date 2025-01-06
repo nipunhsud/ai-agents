@@ -1,0 +1,410 @@
+<!--
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuration Successful - GitHub API</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+        * {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        .main-container {
+            background: #f8fafc;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: 2rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 32px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+            width: 100%;
+            max-width: 420px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(100deg, #22c55e 0%, #16a34a 100%);
+            padding: 2.5rem 2rem;
+            text-align: center;
+            position: relative;
+        }
+
+        .header::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            background: radial-gradient(circle at top right, rgba(255,255,255,0.1), transparent 70%);
+        }
+
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+            animation: scaleIn 0.5s ease-out;
+        }
+
+        @keyframes scaleIn {
+            from { transform: scale(0); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .content {
+            padding: 2rem;
+            animation: slideUp 0.5s ease-out 0.2s both;
+        }
+
+        .status-card {
+            background: #f0fdf4;
+            border: 1px solid #dcfce7;
+            border-radius: 16px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .action-btn {
+            background: linear-gradient(100deg, #22c55e 0%, #16a34a 100%);
+            color: white;
+            width: 100%;
+            padding: 1rem;
+            border-radius: 16px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);
+        }
+
+        .secondary-btn {
+            background: white;
+            border: 1px solid #e2e8f0;
+            color: #64748b;
+        }
+
+        .secondary-btn:hover {
+            border-color: #22c55e;
+            color: #22c55e;
+            box-shadow: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <div class="card">
+            <div class="header">
+                <div class="success-icon">
+                    <i class="fas fa-check text-white text-4xl"></i>
+                </div>
+                <h1 class="text-white text-3xl font-bold mb-2">Success!</h1>
+                <p class="text-white/90 text-lg">GitHub API Configuration Complete</p>
+            </div>
+
+            <div class="content">
+                <div class="status-card">
+                    <div class="flex items-center gap-3 mb-2">
+                        <i class="fas fa-shield-alt text-green-600"></i>
+                        <span class="font-medium text-green-700">Configuration Secured</span>
+                    </div>
+                    <p class="text-green-600 text-sm">Your API credentials have been securely stored and encrypted.</p>
+                </div>
+
+                <div class="space-y-4 mb-6">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-check-circle text-green-500"></i>
+                        <span class="text-gray-600">API Key validated</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-check-circle text-green-500"></i>
+                        <span class="text-gray-600">Secret Key encrypted</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-check-circle text-green-500"></i>
+                        <span class="text-gray-600">Connection tested successfully</span>
+                    </div>
+                </div>
+
+                <button class="action-btn">
+                    <i class="fas fa-code"></i>
+                    Start Using API
+                </button>
+
+                <button class="action-btn secondary-btn">
+                    <i class="fas fa-cog"></i>
+                    View Configuration
+                </button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+
+-->
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuration Successful - GitHub API</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+        * {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        .main-container {
+            background: #f8fafc;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: 2rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 32px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+            width: 100%;
+            max-width: 420px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(100deg, #22c55e 0%, #16a34a 100%);
+            padding: 2.5rem 2rem;
+            text-align: center;
+            position: relative;
+        }
+
+        .header::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            background: radial-gradient(circle at top right, rgba(255,255,255,0.1), transparent 70%);
+        }
+
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+            animation: scaleIn 0.5s ease-out;
+        }
+
+        @keyframes scaleIn {
+            from { transform: scale(0); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .content {
+            padding: 2rem;
+            animation: slideUp 0.5s ease-out 0.2s both;
+        }
+
+        .status-card {
+            background: #f0fdf4;
+            border: 1px solid #dcfce7;
+            border-radius: 16px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .webhook-details {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .webhook-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .webhook-item:last-child {
+            border-bottom: none;
+        }
+
+        .webhook-label {
+            font-size: 0.875rem;
+            color: #64748b;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .webhook-value {
+            font-family: monospace;
+            font-size: 0.875rem;
+            color: #0f172a;
+            padding: 0.5rem;
+            background: #f1f5f9;
+            border-radius: 8px;
+            word-break: break-all;
+        }
+
+        .required-star {
+            color: #ef4444;
+        }
+
+        .action-btn {
+            background: linear-gradient(100deg, #22c55e 0%, #16a34a 100%);
+            color: white;
+            width: 100%;
+            padding: 1rem;
+            border-radius: 16px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);
+        }
+
+        .secondary-btn {
+            background: white;
+            border: 1px solid #e2e8f0;
+            color: #64748b;
+        }
+
+        .secondary-btn:hover {
+            border-color: #22c55e;
+            color: #22c55e;
+            box-shadow: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <div class="card">
+            <div class="header">
+                <div class="success-icon">
+                    <i class="fas fa-check text-white text-4xl"></i>
+                </div>
+                <h1 class="text-white text-3xl font-bold mb-2">Success!</h1>
+                <p class="text-white/90 text-lg">GitHub API Configuration Complete</p>
+            </div>
+
+            <div class="content">
+                <div class="status-card">
+                    <div class="flex items-center gap-3 mb-2">
+                        <i class="fas fa-shield-alt text-green-600"></i>
+                        <span class="font-medium text-green-700">Configuration Secured</span>
+                    </div>
+                    <p class="text-green-600 text-sm">Your API credentials have been securely stored and encrypted.</p>
+                </div>
+
+                <div class="webhook-details">
+                    <div class="webhook-item">
+                        <label class="webhook-label">
+                            Payload URL
+                            <span class="required-star">*</span>
+                        </label>
+                        <div class="webhook-value">{{payload_url}}</div>
+                    </div>
+                    <div class="webhook-item">
+                        <label class="webhook-label">
+                            Content Type
+                            <span class="required-star">*</span>
+                        </label>
+                        <div class="webhook-value">{{content_type}}</div>
+                    </div>
+                    <div class="webhook-item">
+                        <label class="webhook-label">
+                            Secret
+                            <span class="required-star">*</span>
+                        </label>
+                        <div class="webhook-value">{{secret}}</div>
+                    </div>
+                </div>
+
+                <div class="space-y-4 mb-6">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-check-circle text-green-500"></i>
+                        <span class="text-gray-600">API Key validated</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-check-circle text-green-500"></i>
+                        <span class="text-gray-600">Secret Key encrypted</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-check-circle text-green-500"></i>
+                        <span class="text-gray-600">Connection tested successfully</span>
+                    </div>
+                </div>
+
+                <button class="action-btn">
+                    <i class="fas fa-code"></i>
+                    Start Using API
+                </button>
+
+                <button class="action-btn secondary-btn">
+                    <i class="fas fa-cog"></i>
+                    View Configuration
+                </button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

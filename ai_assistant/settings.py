@@ -7,6 +7,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'chat',  # Add the chat app
     'slack_agent',
+    'code_reviewer_agent',
 ]
 
 # Add at the bottom of the file
@@ -18,7 +19,9 @@ load_dotenv()
 
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY') 
 SECRET_KEY='najim'
-
+SERPER_API_KEY = os.getenv('SERPER_API_KEY')
+FINANCIAL_DATASETS_API_KEY = os.getenv('FINANCIAL_DATASETS_API_KEY')
+SEARCHAPI_API_KEY = os.getenv('SEARCHAPI_API_KEY')
 if OPENAI_API_KEY is None:
     raise ValueError("OPENAI_API_KEY not found. Please set it in your environment variables or .env file.")
 
@@ -47,7 +50,7 @@ STATIC_URL = '/static/'
 ROOT_URLCONF = 'ai_assistant.urls'
 DEBUG = True
 
-ALLOWED_HOSTS = ['ai-agents-nh6y.onrender.com', 'localhost']
+ALLOWED_HOSTS = ['ai-agents-nh6y.onrender.com', 'localhost','dd8b-103-158-2-21.ngrok-free.app','127.0.0.1']
 
 TEMPLATES = [
     {
@@ -94,7 +97,7 @@ DATABASES = {
 
 LOGIN_URL = '/admin/login/'  # Since we're using admin login
 
-CSRF_TRUSTED_ORIGINS = ['https://ai-agents-nh6y.onrender.com', 'https://www.purnam.ai/']
+CSRF_TRUSTED_ORIGINS = ['https://ai-agents-nh6y.onrender.com', 'https://www.purnam.ai/','https://dd8b-103-158-2-21.ngrok-free.app']
 
 CORS_ALLOWED_ORIGINS = [
     'https://ai-agents-nh6y.onrender.com',

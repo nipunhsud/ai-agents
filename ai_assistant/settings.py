@@ -85,7 +85,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',   
-    'ai_assistant.middleware.FirebaseAuthMiddleware',
+    #'ai_assistant.middleware.FirebaseAuthMiddleware',
 ]
 
 DATABASES = {
@@ -96,7 +96,7 @@ DATABASES = {
      )
 }
 
-LOGIN_URL = '/admin/login/'  # Since we're using admin login
+LOGIN_URL = '/admin/'  # Since we're using admin login
 
 CSRF_TRUSTED_ORIGINS = ['https://ai-agents-nh6y.onrender.com', 'https://www.purnam.ai/','https://dd8b-103-158-2-21.ngrok-free.app']
 

@@ -17,7 +17,7 @@ import dj_database_url
 load_dotenv()
 
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY') 
-SECRET_KEY='najim'
+SECRET_KEY='purnam'
 SERPER_API_KEY = os.getenv('SERPER_API_KEY')
 FINANCIAL_DATASETS_API_KEY = os.getenv('FINANCIAL_DATASETS_API_KEY')
 SEARCHAPI_API_KEY = os.getenv('SEARCHAPI_API_KEY')

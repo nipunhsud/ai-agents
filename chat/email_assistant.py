@@ -48,11 +48,9 @@ chat = ChatOpenAI(
 def authenticate_gmail_api():
     creds = None
 
-
-
     # Set Chrome as the default browser
     chrome_path = '/usr/bin/google-chrome'
-    webbrowser.register('chrome', None, webbrowser.BackgroundBrowser(chrome_path))
+    webbrowser.register('chrome', None, webbrowser.Chrome(chrome_path))
 
     # Check if token.pickle exists for saved credentials
     if os.path.exists("token.pickle"):

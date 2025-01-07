@@ -136,3 +136,6 @@ whitenoise==6.8.2
 wrapt==1.17.0
 yarl==1.18.0
 yfinance==0.2.51
+pyvirtualdisplay==3.0
+selenium==4.10.0
+xvfbwrapper==0.2.9

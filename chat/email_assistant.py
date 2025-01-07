@@ -50,7 +50,7 @@ def authenticate_gmail_api():
 
     # Set Chrome as the default browser
     chrome_path = '/usr/bin/google-chrome'
-    webbrowser.register('chrome', None, webbrowser.Chrome(chrome_path))
+    webbrowser.register('chrome', None, webbrowser.Chrome())
 
     # Check if token.pickle exists for saved credentials
     if os.path.exists("token.pickle"):

@@ -52,8 +52,13 @@ def email_assistant_page(request):
 
 @ensure_csrf_cookie
 def fetch_emails(request):
-    emails = get_emails()
-    return JsonResponse({'emails': emails})
+    if request.method == 'GET':
+        try:
+            emails = get_emails()
+            return JsonResponse({'emails': emails}, status=200)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
     
 @ensure_csrf_cookie
 def gift_prediction_view(request):
@@ -377,34 +382,33 @@ class AssistantView(View):
         # Return the response as JSON
         return JsonResponse({'response': "ok"})
 
+@method_decorator(ensure_csrf_cookie, name='dispatch')
 class EmailAssistantView(View):
+    def get(self, request):
+        return render(request, 'chat/email_writer.html')
+
     def post(self, request):
-        if request.method == 'POST':
-            try:
-                # Parse JSON data from request body
-                data = json.loads(request.body)
-                
-                # Extract email information
-                email_id = data.get('email_id', '')
-                subject = data.get('subject', '')
-                from_email = data.get('from', '')
-                original_content = data.get('original_content', '')
-                to_email = data.get('to', '')
+        try:
+            data = json.loads(request.body)
+            response = email_generator(
+                data.get('subject', ''),
+                data.get('from', ''),
+                data.get('to', ''),
+                data.get('original_content', '')
+            )
+            return JsonResponse({'response': response})
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
 
-                if not original_content:
-                    return JsonResponse({'error': 'Input cannot be empty.'})
-
-                # Generate response using your email assistant
-                response = email_generator(subject, from_email, to_email, original_content)
-                
-                return JsonResponse({'response': response})
-
-            except json.JSONDecodeError:
-                return JsonResponse({'error': 'Invalid JSON data'}, status=400)
-            except Exception as e:
-                return JsonResponse({'error': str(e)}, status=500)
-
-        return JsonResponse({'error': 'Method not allowed'}, status=405)
+@ensure_csrf_cookie
+def fetch_emails(request):
+    if request.method == 'GET':
+        try:
+            emails = get_emails()
+            return JsonResponse({'emails': emails}, status=200)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
         
 class StockAssistantView(View):
     def post(self, request):
@@ -449,19 +453,12 @@ def email_assistant_view(request):
             original_content = data.get('original_content', '')
             to_email = data.get('to', '')
 
-            # Combine email context for AI processing
-            email_context = f"""
-Subject: {subject}
-From: {from_email}
-To: {to_email}
-Content: {original_content}
-"""
             
             if not original_content:
                 return JsonResponse({'error': 'Input cannot be empty.'})
 
             # Generate response using your email assistant
-            response = email_generator(email_context)
+            response = email_generator(subject, from_email, to_email, original_content)
             
             return JsonResponse({'response': response})
 

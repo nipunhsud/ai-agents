@@ -11,7 +11,7 @@ python manage.py collectstatic --no-input
 # Apply any outstanding database migrations
 python manage.py migrate
 
-STORAGE_DIR=/opt/render/project/.render
+STORAGE_DIR=/opt/render/project/src
 
 if [ ! -d $STORAGE_DIR/chrome ]; then
   echo "...Downloading Chrome"

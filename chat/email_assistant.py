@@ -29,6 +29,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 import base64
 from email.mime.text import MIMEText
+import webbrowser
 
 from ai_assistant.utils import load_email_templates, save_email_template
 
@@ -46,6 +47,13 @@ chat = ChatOpenAI(
 
 def authenticate_gmail_api():
     creds = None
+
+
+
+    # Set Chrome as the default browser
+    chrome_path = '/usr/bin/google-chrome'
+    webbrowser.register('chrome', None, webbrowser.BackgroundBrowser(chrome_path))
+
     # Check if token.pickle exists for saved credentials
     if os.path.exists("token.pickle"):
         with open("token.pickle", "rb") as token:

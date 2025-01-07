@@ -13,6 +13,9 @@ services:
         fromDatabase:
           name: postgres
           property: connectionString
+    packages:
+      - google-chrome-stable  # Add Chrome browser
+      - chromium-chromedriver # Add ChromeDriver
 
 
   # Uncomment the following blueprint if you want to enable a background worker

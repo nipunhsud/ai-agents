@@ -50,6 +50,7 @@ def email_assistant_page(request):
         logger.error(f"Error rendering react page: {str(e)}")
         return JsonResponse({'error': str(e)}, status=500)
 
+@ensure_csrf_cookie
 def fetch_emails(request):
     emails = get_emails()
     return JsonResponse({'emails': emails})

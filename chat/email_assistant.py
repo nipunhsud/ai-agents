@@ -48,24 +48,25 @@ chat = ChatOpenAI(
 def authenticate_gmail_api():
     creds = None
 
-    # Set Chrome as the default browser
-    chrome_path = '/usr/bin/google-chrome'
-    webbrowser.register('chrome', None, webbrowser.Chrome())
-
     # Check if token.pickle exists for saved credentials
     if os.path.exists("token.pickle"):
         with open("token.pickle", "rb") as token:
             creds = pickle.load(token)
+            
     # If no valid credentials, initiate manual sign-in
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
             flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
-            creds = flow.run_local_server(port=0)
+            # Use local server without browser launch
+            creds = flow.run_local_server(port=0, open_browser=True)
+            print(f"\nPlease visit this URL to authorize the application: {flow.authorization_url()[0]}\n")
+            
         # Save the credentials for future use
         with open("token.pickle", "wb") as token:
             pickle.dump(creds, token)
+            
     return build('gmail', 'v1', credentials=creds)
 
 def list_messages(service, user_id='me', query=''):

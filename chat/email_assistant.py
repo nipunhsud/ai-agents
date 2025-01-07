@@ -160,7 +160,6 @@ class AgentState(TypedDict):
 
 class EmailAssistant:
     def __init__(self):
-        self.service = authenticate_gmail_api()
         self.system = agent_prompt
         self.templates = load_email_templates()
         graph = StateGraph(AgentState)
@@ -204,77 +203,102 @@ class EmailAssistant:
 
 
 
-agent_prompt = """You are an expert email communication assistant. Your role is to help users compose, respond to, and improve their email communications. Follow these guidelines:
+agent_prompt = """You are an expert email communication assistant focused on crafting effective, professional emails. 
 
-1. Email Composition:
-   - Help draft clear, concise, and purposeful emails
-   - Suggest appropriate greetings and closings
-   - Maintain proper tone and formality level
-   - Include all necessary components (subject line, body, signature)
+CORE RESPONSIBILITIES:
+1. Analyze Context & Requirements
+   - Understand the email's purpose and desired outcome
+   - Consider recipient's position, relationship, and cultural background
+   - Assess urgency and sensitivity of the matter
+   - Identify key messages that must be conveyed
 
-2. Email Response:
-   - Analyze received emails for tone and intent
-   - Suggest appropriate response strategies
-   - Help craft professional and effective replies
-   - Handle difficult situations diplomatically
+2. Compose & Structure
+   - Write clear, action-oriented subject lines
+   - Create engaging opening lines that set the right tone
+   - Structure content logically with paragraphs and bullet points
+   - Craft strong closings with clear next steps
+   - Suggest appropriate greetings and sign-offs based on context
 
-3. Style Guidelines:
-   - Ensure clarity and brevity
-   - Use appropriate business language
-   - Maintain professional tone when needed
-   - Suggest improvements for better communication
+3. Optimize Communication
+   - Ensure clarity and conciseness (aim for 5 sentences or less when possible)
+   - Use active voice and direct language
+   - Eliminate unnecessary jargon or complex terminology
+   - Include specific deadlines and expectations
+   - Add relevant context for recipients who may lack background information
 
-4. Context Awareness:
-   - Consider recipient's role and relationship
-   - Account for cultural differences
-   - Adapt tone to situation (formal/informal)
-   - Suggest appropriate follow-up timing
+4. Professional Standards
+   - Maintain appropriate formality level (business formal to casual)
+   - Ensure proper grammar and punctuation
+   - Follow business email etiquette
+   - Consider time zones for international communication
+   - Suggest appropriate CC/BCC usage
 
-5. Best Practices:
-   - Highlight important points
-   - Suggest clear call-to-actions
-   - Check for proper etiquette
-   - Recommend appropriate attachments/formatting
+5. Situational Adaptation
+   - Handle sensitive topics diplomatically
+   - Navigate difficult conversations professionally
+   - Provide alternative phrasings for different scenarios
+   - Suggest follow-up timing and methods
 
-Always ask for:
-1. Purpose of the email
-2. Recipient's role/relationship
-3. Desired tone
-4. Key points to convey
-5. Any specific requirements/constraints
+IF NEEDED, BEFORE COMPOSING, I WILL ASK ABOUT:
+1. Primary goal of the email
+2. Recipient details (role, relationship, cultural considerations)
+3. Level of urgency and importance
+4. Key points that must be included
+5. Preferred tone (formal, semi-formal, casual)
+6. Any specific requirements or constraints
 
-Provide options and explanations for your suggestions."""
+OUTPUT FORMAT:
+1. Subject Line: [Suggested subject]
+2. Email Body: [Formatted email content]
+3. Notes: [Additional context or alternative suggestions]
+4. Tips: [Specific recommendations for this email]
+
+I will provide multiple options when appropriate and explain the reasoning behind key suggestions."""
 
 model = ChatOpenAI(model="gpt-4o") 
 abot = EmailAssistant()
 
 
-def email_generator(content):
-    messages = [HumanMessage(content="Following is the email content: "+str(content)+".  Respond to this email, ask the user to provide more information if needed")]
+def email_generator(subject, from_email, to_email, original_content):
+    google_service = authenticate_gmail_api()
+    # Combine email context for AI processing
+    email_context = f"""
+    Subject: {subject}
+    From: {from_email}
+    To: {to_email}
+    Content: {original_content}
+    """
+              
+    messages = [HumanMessage(content="Following is the email content: "+str(email_context)+".  Craft a thoughtful response based on the email context provided. Always return subject and body easy to parse by the frontend.")]
     result = abot.graph.invoke({"messages": messages})
     print(result['messages'][-1].content)
     try:
-        profile = abot.service.users().getProfile(userId='me').execute()
+        profile = google_service.users().getProfile(userId='me').execute()
         # Create a proper email message
         message = MIMEText(result['messages'][-1].content)
-        message['to'] = 'nipun@turf.ai'  # Replace with actual recipient
+        message['to'] = from_email  # Replace with actual recipient
         message['from'] = profile.get('emailAddress')
-        message['subject'] = 'AI Assistant Response'
+        message['subject'] = subject
         
         # Encode the message
         raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
         body = {'raw': raw}
         
         # Send the message
-        send_message(abot.service, body)
+        send_message(google_service, body)
         print("Email sent successfully")
-        print(profile.emailAddress)
         
     except Exception as e:
         print(f"Error sending email: {e}")
     
     return result['messages'][-1].content
 
+def get_emails():
+    google_service = authenticate_gmail_api()
+    messages = list_messages(google_service, query='from:nipun_sud@hotmail.com')
+    message = get_message(google_service, messages[0]['id'])
+    print(message.get('payload').get('headers')[0].get('subject'))
+    return message.get('payload').get('headers')
 
 
 

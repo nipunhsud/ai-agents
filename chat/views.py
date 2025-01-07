@@ -19,6 +19,7 @@ from .models import Message
 from .models import Document
 from .models import Conversation
 from .gift_agent import gift_prediction
+from .email_assistant import get_emails
 from .document_processor import DocumentProcessor
 from .technical_writer import TechnicalWriter, DocumentType, OutputFormat
 from .assistant import Assistant
@@ -35,13 +36,24 @@ chat = ChatOpenAI(
 )
 
 
-def test(request):
+def query_page(request):
     messages = [HumanMessage(content="do you know messi")]
     response = chat(messages)
     response = str(response.content)
-    return JsonResponse({'agdum':response})
+    return JsonResponse({'response':response})
 
+@ensure_csrf_cookie
+def email_assistant_page(request):
+    try:
+        return render(request, 'chat/email_writer.html')
+    except Exception as e:
+        logger.error(f"Error rendering react page: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
 
+def fetch_emails(request):
+    emails = get_emails()
+    return JsonResponse({'emails': emails})
+    
 @ensure_csrf_cookie
 def gift_prediction_view(request):
     if request.method == 'POST':
@@ -363,24 +375,35 @@ class AssistantView(View):
         stream = assistant.run_assistant()
         # Return the response as JSON
         return JsonResponse({'response': "ok"})
-    
-@method_decorator(login_required, name='dispatch')
+
 class EmailAssistantView(View):
     def post(self, request):
-        if not request.user.is_authenticated:
-            return JsonResponse({'error': 'Authentication required'}, status=401)
-        
-        user_input = request.POST.get('input', '')
-        if not user_input:
-            return JsonResponse({'error': 'Input cannot be empty.'}, status=400)
+        if request.method == 'POST':
+            try:
+                # Parse JSON data from request body
+                data = json.loads(request.body)
+                
+                # Extract email information
+                email_id = data.get('email_id', '')
+                subject = data.get('subject', '')
+                from_email = data.get('from', '')
+                original_content = data.get('original_content', '')
+                to_email = data.get('to', '')
 
-        try:
-            #stream = email_generator(user_input)
-            #email_response = stream.content
-            email_response = "ok"
-            return JsonResponse({'response': email_response})
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
+                if not original_content:
+                    return JsonResponse({'error': 'Input cannot be empty.'})
+
+                # Generate response using your email assistant
+                response = email_generator(subject, from_email, to_email, original_content)
+                
+                return JsonResponse({'response': response})
+
+            except json.JSONDecodeError:
+                return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+            except Exception as e:
+                return JsonResponse({'error': str(e)}, status=500)
+
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
         
 class StockAssistantView(View):
     def post(self, request):
@@ -411,3 +434,39 @@ def quant_analyst_page(request):
     except Exception as e:
         logger.error(f"Error rendering react page: {str(e)}")
         return JsonResponse({'error': str(e)}, status=500)
+
+def email_assistant_view(request):
+    if request.method == 'POST':
+        try:
+            # Parse JSON data from request body
+            data = json.loads(request.body)
+            
+            # Extract email information
+            email_id = data.get('email_id', '')
+            subject = data.get('subject', '')
+            from_email = data.get('from', '')
+            original_content = data.get('original_content', '')
+            to_email = data.get('to', '')
+
+            # Combine email context for AI processing
+            email_context = f"""
+Subject: {subject}
+From: {from_email}
+To: {to_email}
+Content: {original_content}
+"""
+            
+            if not original_content:
+                return JsonResponse({'error': 'Input cannot be empty.'})
+
+            # Generate response using your email assistant
+            response = email_generator(email_context)
+            
+            return JsonResponse({'response': response})
+
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+    return JsonResponse({'error': 'Method not allowed'}, status=405)

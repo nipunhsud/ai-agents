@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Assistant</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .email-container {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        .email-header {
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .email-subject {
+            font-weight: bold;
+        }
+        .email-from {
+            color: #666;
+        }
+        .email-content {
+            margin-bottom: 15px;
+        }
+        .reply-area {
+            width: 100%;
+            min-height: 100px;
+            margin: 10px 0;
+            padding: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #response {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+        }
+        .loading {
+            display: none;
+            color: #666;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <h1>Email Assistant</h1>
+    
+    <!-- Add CSRF Token -->
+    {% csrf_token %}
+    
+    <!-- Email Fetch Section -->
+    <div class="email-container">
+        <button id="fetchEmails">Fetch Latest Emails</button>
+        <div id="emailList"></div>
+    </div>
+
+    <!-- Reply Section -->
+    <div class="email-container" id="replySection" style="display: none;">
+        <div class="email-header">
+            <div class="email-subject" id="originalSubject"></div>
+            <div class="email-from" id="originalFrom"></div>
+        </div>
+        <div class="email-content" id="originalContent"></div>
+        
+        <h3>Compose Reply</h3>
+        <textarea class="reply-area" id="replyContent" placeholder="Type your reply or let AI assist you"></textarea>
+        <button id="generateAIReply">Generate AI Reply</button>
+        <button id="sendReply">Send Reply</button>
+        <div class="loading" id="loadingIndicator">Generating reply...</div>
+    </div>
+
+    <div id="response"></div>
+
+    <script>
+        // Update CSRF token retrieval to handle potential null value
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+        let currentEmailId = null;
+
+        // Fetch Emails
+        document.getElementById('fetchEmails').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/fetch_emails/', {
+                    method: 'GET',
+                    headers: {
+                        'X-CSRFToken': csrfToken
+                    }
+                });
+                const data = await response.json();
+                displayEmail(data.emails);
+            } catch (error) {
+                console.error('Error fetching emails:', error);
+            }
+        });
+
+        // Display Email from Headers
+        function displayEmail(headers) {
+            const emailList = document.getElementById('emailList');
+            emailList.innerHTML = '';
+            
+            if (!headers || headers.length === 0) {
+                emailList.innerHTML = '<p>No emails found</p>';
+                return;
+            }
+
+            const emailDiv = document.createElement('div');
+            emailDiv.className = 'email-container';
+            
+            // Extract relevant headers
+            const subject = headers.find(h => h.name === 'Subject')?.value || 'No Subject';
+            const from = headers.find(h => h.name === 'From')?.value || 'No Sender';
+            const to = headers.find(h => h.name === 'To')?.value || 'No Recipient';
+            const date = headers.find(h => h.name === 'Date')?.value || 'No Date';
+            const messageId = headers.find(h => h.name === 'Message-ID')?.value || '';
+            
+            // Add content to the page
+            emailDiv.innerHTML = `
+                <div class="email-header">
+                    <div class="email-subject">${subject}</div>
+                    <div class="email-from">From: ${from}</div>
+                    <div class="email-to">To: ${to}</div>
+                    <div class="email-date">Date: ${date}</div>
+                </div>
+                <div class="email-content" id="originalContent">
+                    <p>Subject: ${subject}</p>
+                    <p>From: ${from}</p>
+                    <p>To: ${to}</p>
+                    <p>Date: ${date}</p>
+                    <p>Message ID: ${messageId}</p>
+                </div>
+                <button onclick="showReplySection('${messageId}', '${subject}', '${from}', '${to}')">
+                    Reply
+                </button>
+            `;
+            emailList.appendChild(emailDiv);
+        }
+
+        // Show Reply Section
+        function showReplySection(messageId, subject, from, to) {
+            currentEmailId = messageId;
+            document.getElementById('replySection').style.display = 'block';
+            document.getElementById('originalSubject').textContent = subject;
+            document.getElementById('originalFrom').textContent = `From: ${from}`;
+            document.getElementById('replyContent').value = '';
+        }
+
+        // Generate AI Reply
+        document.getElementById('generateAIReply').addEventListener('click', async () => {
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            loadingIndicator.style.display = 'block';
+            
+            // Get all relevant email information
+            const emailData = {
+                email_id: currentEmailId,
+                subject: document.getElementById('originalSubject').textContent,
+                from: document.getElementById('originalFrom').textContent,
+                original_content: document.getElementById('originalContent').textContent || 'No content available',
+                to: document.getElementById('originalTo')?.textContent || ''
+            };
+            
+            // Debug log
+            console.log('Sending email data:', emailData);
+            
+            try {
+                const response = await fetch('/email_assistant/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                    },
+                    body: JSON.stringify(emailData)
+                });
+                
+                // Debug log
+                console.log('Response:', await response.clone().json());
+                
+                const data = await response.json();
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+                document.getElementById('replyContent').value = data.response;
+            } catch (error) {
+                console.error('Error generating reply:', error);
+                alert('Failed to generate reply');
+            } finally {
+                loadingIndicator.style.display = 'none';
+            }
+        });
+
+        // Send Reply
+        document.getElementById('sendReply').addEventListener('click', async () => {
+            if (!currentEmailId) return;
+            
+            try {
+                const response = await fetch('/send_reply/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': csrfToken,
+                    },
+                    body: new URLSearchParams({
+                        'email_id': currentEmailId,
+                        'reply_content': document.getElementById('replyContent').value
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    alert('Reply sent successfully!');
+                    document.getElementById('replySection').style.display = 'none';
+                } else {
+                    alert('Failed to send reply');
+                }
+            } catch (error) {
+                console.error('Error sending reply:', error);
+                alert('Error sending reply');
+            }
+        });
+    </script>
+</body>
+</html>

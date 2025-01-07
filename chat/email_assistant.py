@@ -3,6 +3,7 @@ import ast
 import operator
 import yaml
 from pathlib import Path
+import platform
 
 from dotenv import load_dotenv
 from langgraph.graph import END
@@ -37,7 +38,13 @@ SCOPES = ['https://mail.google.com/']
 tavily_tool = TavilySearchResults(max_results=4) #increased number of results
 _ = load_dotenv()
 
-
+chrome_path = ''
+if platform.system() == 'Darwin':  # macOS
+    chrome_path = 'open -a /Applications/Google\ Chrome.app %s'
+elif platform.system() == 'Linux':
+    chrome_path = '/usr/bin/google-chrome %s'
+else:  # Windows
+    chrome_path = 'C:/Program Files/Google/Chrome/Application/chrome.exe %s'
 
 tools = [tavily_tool]
 chat = ChatOpenAI(
@@ -63,6 +70,7 @@ def authenticate_gmail_api():
             creds = flow.run_local_server(
                 port=0,
                 open_browser=True,
+                browser=chrome_path,
                 authorization_prompt_message="Please visit this URL to authorize the application: {url}"
             )
             

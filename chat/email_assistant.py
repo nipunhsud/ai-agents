@@ -59,9 +59,12 @@ def authenticate_gmail_api():
             creds.refresh(Request())
         else:
             flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
-            # Use local server without browser launch
-            creds = flow.run_local_server(port=0, open_browser=True)
-            print(f"\nPlease visit this URL to authorize the application: {flow.authorization_url()[0]}\n")
+            # Use default browser, no Chrome required
+            creds = flow.run_local_server(
+                port=0,
+                open_browser=True,
+                authorization_prompt_message="Please visit this URL to authorize the application: {url}"
+            )
             
         # Save the credentials for future use
         with open("token.pickle", "wb") as token:

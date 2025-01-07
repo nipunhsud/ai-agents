@@ -1,13 +1,15 @@
-#!/usr/bin/env bash
-# Exit on error
-set -o errexit
+#!/bin/bash
 
-# Modify this line as needed for your package manager (pip, poetry, etc.)
-pip install -r requirements.txt
+# Create postgres role if it doesn't exist
+psql postgres -c "CREATE ROLE postgres WITH LOGIN SUPERUSER PASSWORD 'postgres'" || true
 
-# Convert static asset files
-python manage.py collectstatic --no-input
+# Create database if it doesn't exist
+psql postgres -c "CREATE DATABASE ai_assistant OWNER postgres" || true
 
-# Apply any outstanding database migrations
+# Run migrations
+python manage.py makemigrations
 python manage.py migrate
+
+# Collect static files
+python manage.py collectstatic --no-input
 

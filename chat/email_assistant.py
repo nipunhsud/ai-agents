@@ -38,14 +38,6 @@ SCOPES = ['https://mail.google.com/']
 tavily_tool = TavilySearchResults(max_results=4) #increased number of results
 _ = load_dotenv()
 
-chrome_path = ''
-if platform.system() == 'Darwin':  # macOS
-    chrome_path = 'open -a /Applications/Google\ Chrome.app %s'
-elif platform.system() == 'Linux':
-    chrome_path = '/usr/bin/google-chrome %s'
-else:  # Windows
-    chrome_path = 'C:/Program Files/Google/Chrome/Application/chrome.exe %s'
-
 tools = [tavily_tool]
 chat = ChatOpenAI(
     temperature=0.7,  # Controls randomness (0.0 = deterministic, 1.0 = creative)
@@ -70,8 +62,7 @@ def authenticate_gmail_api():
             creds = flow.run_local_server(
                 port=0,
                 open_browser=True,
-                browser=chrome_path,
-                authorization_prompt_message="Please visit this URL to authorize the application: {url}"
+                authorization_prompt_message="Please visit this URL to authorize the application: {flow.authorization_url()[0]}"
             )
             
         # Save the credentials for future use

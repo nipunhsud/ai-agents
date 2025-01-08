@@ -62,7 +62,7 @@ def authenticate_gmail_api():
            creds = InstalledAppFlow.from_client_secrets_file(
           "credentials.json", SCOPES
         )
-        browser_path = '/opt/render/project/.render/chrome/opt/google/chrome %s'
+        browser_path = '/opt/render/project/.render/chrome/opt/google/chrome'
         # Register the browser
         webbrowser.register('my_browser', None, webbrowser.BackgroundBrowser(browser_path))
 

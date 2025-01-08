@@ -62,6 +62,7 @@ def authenticate_gmail_api():
             creds = flow.run_local_server(
                 port=0,
                 open_browser=True,
+                browser= webbrowser.Chrome().open(flow.authorization_url()[0]),
                 authorization_prompt_message="Please visit this URL to authorize the application: {flow.authorization_url()[0]}"
             )
             

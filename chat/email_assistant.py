@@ -59,11 +59,15 @@ def authenticate_gmail_api():
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-           flow = InstalledAppFlow.from_client_secrets_file(
+           creds = InstalledAppFlow.from_client_secrets_file(
           "credentials.json", SCOPES
         )
-        webbrowser.open(flow.authorization_url()[0])
-        creds = flow.run_local_server(open_browser=True, browser= webbrowser.get('chrome'), bind_host="0.0.0.0")
+        browser_path = '/opt/render/project/.render/chrome/opt/google/chrome %s'
+        # Register the browser
+        webbrowser.register('my_browser', None, webbrowser.BackgroundBrowser(browser_path))
+
+        # Open a URL using the registered browser
+        webbrowser.get('my_browser').open(creds.authorization_url())
         # Save the credentials for future use
         with open("token.pickle", "wb") as token:
             pickle.dump(creds, token)

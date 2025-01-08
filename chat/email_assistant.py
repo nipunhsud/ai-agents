@@ -31,7 +31,7 @@ from google.auth.transport.requests import Request
 import base64
 from email.mime.text import MIMEText
 import webbrowser
-
+from google.oauth2.credentials import Credentials
 from ai_assistant.utils import load_email_templates, save_email_template
 
 SCOPES = ['https://mail.google.com/']
@@ -47,6 +47,8 @@ chat = ChatOpenAI(
 def authenticate_gmail_api():
     creds = None
 
+    # if os.path.exists("token.json"):
+    #     creds = Credentials.from_authorized_user_file("token.json", SCOPES)
     # Check if token.pickle exists for saved credentials
     if os.path.exists("token.pickle"):
         with open("token.pickle", "rb") as token:
@@ -57,15 +59,10 @@ def authenticate_gmail_api():
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
-            # Use default browser, no Chrome required
-            creds = flow.run_local_server(
-                port=0,
-                open_browser=True,
-                browser= webbrowser.Chrome().open(flow.authorization_url()[0]),
-                authorization_prompt_message="Please visit this URL to authorize the application: {flow.authorization_url()[0]}"
-            )
-            
+           flow = InstalledAppFlow.from_client_secrets_file(
+          "credentials.json", SCOPES
+        )
+        creds = flow.run_local_server(port=0)
         # Save the credentials for future use
         with open("token.pickle", "wb") as token:
             pickle.dump(creds, token)

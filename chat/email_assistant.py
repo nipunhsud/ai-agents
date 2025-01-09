@@ -3,6 +3,7 @@ import ast
 import operator
 import yaml
 from pathlib import Path
+import platform
 
 from dotenv import load_dotenv
 from langgraph.graph import END
@@ -29,14 +30,13 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 import base64
 from email.mime.text import MIMEText
-
+import webbrowser
+from google.oauth2.credentials import Credentials
 from ai_assistant.utils import load_email_templates, save_email_template
 
 SCOPES = ['https://mail.google.com/']
 tavily_tool = TavilySearchResults(max_results=4) #increased number of results
 _ = load_dotenv()
-
-
 
 tools = [tavily_tool]
 chat = ChatOpenAI(
@@ -46,20 +46,32 @@ chat = ChatOpenAI(
 
 def authenticate_gmail_api():
     creds = None
+
+    # if os.path.exists("token.json"):
+    #     creds = Credentials.from_authorized_user_file("token.json", SCOPES)
     # Check if token.pickle exists for saved credentials
     if os.path.exists("token.pickle"):
         with open("token.pickle", "rb") as token:
             creds = pickle.load(token)
+            
     # If no valid credentials, initiate manual sign-in
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
-            creds = flow.run_local_server(port=0)
+           creds = InstalledAppFlow.from_client_secrets_file(
+          "credentials.json", SCOPES
+        )
+        browser_path = '/opt/render/project/.render/chrome/opt/google/chrome'
+        # Register the browser
+        webbrowser.register('my_browser', None, webbrowser.BackgroundBrowser(browser_path))
+
+        # Open a URL using the registered browser
+        webbrowser.get('my_browser').open(creds.authorization_url())
         # Save the credentials for future use
         with open("token.pickle", "wb") as token:
             pickle.dump(creds, token)
+            
     return build('gmail', 'v1', credentials=creds)
 
 def list_messages(service, user_id='me', query=''):

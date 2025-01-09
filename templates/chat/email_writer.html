@@ -102,8 +102,10 @@
                 const response = await fetch('/fetch_emails/', {
                     method: 'GET',
                     headers: {
-                        'X-CSRFToken': csrfToken
-                    }
+                        'Accept': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                    },
+                    credentials: 'same-origin'
                 });
                 const data = await response.json();
                 displayEmail(data.emails);

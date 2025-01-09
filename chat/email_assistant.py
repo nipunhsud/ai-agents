@@ -172,7 +172,6 @@ class AgentState(TypedDict):
 
 class EmailAssistant:
     def __init__(self):
-        
         self.system = agent_prompt
         self.templates = load_email_templates()
         graph = StateGraph(AgentState)

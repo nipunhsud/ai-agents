@@ -4,6 +4,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from chat import views
 from slack_agent.views import test,handle_message
+from code_reviewer_agent.views import code_reviewer_view,github_webhook,github_keys_form,submit_keys,success_view
 from django.contrib.auth import views as auth_views
 
 urlpatterns = [
@@ -24,8 +25,16 @@ urlpatterns = [
     path("email_assistant/",views.EmailAssistantView.as_view(), name='email_assistant'),
     path('analyst/', views.quant_analyst_page, name='quant_analyst_page'),
     path("stock_assistant/",views.StockAssistantView.as_view(), name='stock_assistant'),
+    path("code_reviewer/",code_reviewer_view, name='code_reviewer'),
+    #path("github_webhook/",github_webhook, name='github_webhook'),
+    path('github_webhook/<str:variable>/', github_webhook, name='github_webhook'),
+    path('github_keys_form/', github_keys_form, name='github_keys_form'),
+    path('submit_keys/', submit_keys, name='submit_keys'),
+    path('success_view/', success_view, name='success_page'),
+
     path("email/",views.email_assistant_page, name='email_assistant_page'),
     path('fetch_emails/', views.fetch_emails, name='fetch_emails'),
+  
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 

@@ -23,7 +23,7 @@ from .email_assistant import get_emails
 from .document_processor import DocumentProcessor
 from .technical_writer import TechnicalWriter, DocumentType, OutputFormat
 from .assistant import Assistant
-from .email_assistant import email_generator
+#from .email_assistant import email_generator
 from .stock_assistant import stock_generator
 from .decorators import firebase_auth_required
 

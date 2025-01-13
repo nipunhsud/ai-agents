@@ -6,6 +6,7 @@ from agents import views
 from slack_agent.views import test, add_slack_token
 from code_reviewer_agent.views import code_reviewer_view,github_webhook,github_keys_form,submit_keys,success_view
 from help_desk_agent.views import test_help_desk_agent_view,help_desk,help_desk_receive
+from help_desk_agent.views import test_help_desk_agent_view,help_desk,help_desk_receive
 from django.contrib.auth import views as auth_views
 
 urlpatterns = [
@@ -21,6 +22,7 @@ urlpatterns = [
     path("gift/",views.gift_prediction_view, name='gift'),
     path("slack/",test, name='slack'),
     path('writer/', views.technical_writer_view, name='technical_writer'),
+    path("add-slack-token/",add_slack_token, name='add_slack_token'),
     path("add-slack-token/",add_slack_token, name='add_slack_token'),
     path("assistant/",views.AssistantView.as_view(), name='assistant'),
     path("email_assistant/",views.EmailAssistantView.as_view(), name='email_assistant'),

@@ -8,6 +8,7 @@ INSTALLED_APPS = [
     'agents.apps.AgentsConfig',
     'slack_agent',
     'code_reviewer_agent',
+    'help_desk_agent',
 ]
 
 # Add at the bottom of the file

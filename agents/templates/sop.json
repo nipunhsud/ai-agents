@@ -1,0 +1,38 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "last_updated": "",
+    "department": "",
+    "approved_by": []
+  },
+  "structure": {
+    "title": "",
+    "purpose": "",
+    "scope": {
+      "applies_to": [],
+      "exceptions": []
+    },
+    "definitions": {},
+    "responsibilities": {
+      "roles": [],
+      "accountabilities": {}
+    },
+    "procedure": {
+      "prerequisites": [],
+      "safety_considerations": [],
+      "steps": [],
+      "quality_checks": []
+    },
+    "compliance": {
+      "regulations": [],
+      "standards": [],
+      "documentation": []
+    },
+    "references": {
+      "related_sops": [],
+      "forms": [],
+      "additional_resources": []
+    },
+    "revision_history": []
+  }
+} 

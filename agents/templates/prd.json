@@ -1,0 +1,47 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "last_updated": "",
+    "product_owner": "",
+    "stakeholders": []
+  },
+  "structure": {
+    "title": "",
+    "executive_summary": "",
+    "problem_statement": {
+      "background": "",
+      "current_situation": "",
+      "opportunity": ""
+    },
+    "product_goals": {
+      "objectives": [],
+      "success_metrics": [],
+      "target_audience": ""
+    },
+    "requirements": {
+      "functional": [],
+      "non_functional": [],
+      "constraints": []
+    },
+    "features": {
+      "must_have": [],
+      "should_have": [],
+      "nice_to_have": []
+    },
+    "user_experience": {
+      "user_flows": [],
+      "wireframes": [],
+      "design_requirements": []
+    },
+    "technical_considerations": {
+      "architecture": "",
+      "dependencies": [],
+      "integration_points": []
+    },
+    "timeline": {
+      "milestones": [],
+      "dependencies": []
+    },
+    "risks_and_mitigations": []
+  }
+} 

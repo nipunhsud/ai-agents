@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
-from chat import views
+from agents import views
 from slack_agent.views import test,handle_message
 from code_reviewer_agent.views import code_reviewer_view,github_webhook,github_keys_form,submit_keys,success_view
 from django.contrib.auth import views as auth_views
@@ -34,6 +34,7 @@ urlpatterns = [
 
     path("email/",views.email_assistant_page, name='email_assistant_page'),
     path('fetch_emails/', views.fetch_emails, name='fetch_emails'),
+    
   
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 

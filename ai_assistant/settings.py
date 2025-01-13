@@ -5,7 +5,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'chat',  # Add the chat app
+    'agents.apps.AgentsConfig',
     'slack_agent',
     'code_reviewer_agent',
 ]
@@ -50,14 +50,19 @@ STATIC_URL = '/static/'
 ROOT_URLCONF = 'ai_assistant.urls'
 DEBUG = True
 
-ALLOWED_HOSTS = ['ai-agents-nh6y.onrender.com', 'localhost','dd8b-103-158-2-21.ngrok-free.app','127.0.0.1']
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    '.ngrok.io',  # Allow all ngrok subdomains
+    'your-ngrok-subdomain.ngrok.io'
+]
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [
             os.path.join(BASE_DIR, 'templates'),
-            os.path.join(BASE_DIR, 'chat', 'templates'),
+            os.path.join(BASE_DIR, 'agents', 'templates'),
         ],
         'APP_DIRS': True,
         'OPTIONS': {
@@ -98,7 +103,10 @@ DATABASES = {
 
 LOGIN_URL = '/admin/'  # Since we're using admin login
 
-CSRF_TRUSTED_ORIGINS = ['https://ai-agents-nh6y.onrender.com', 'https://www.purnam.ai/','https://dd8b-103-158-2-21.ngrok-free.app']
+CSRF_TRUSTED_ORIGINS = [
+    'https://*.ngrok.io',
+    'http://*.ngrok.io',
+]
 
 CORS_ALLOWED_ORIGINS = [
     'https://ai-agents-nh6y.onrender.com',

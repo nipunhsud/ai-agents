@@ -41,7 +41,7 @@ class Migration(migrations.Migration):
                 ('content', models.TextField()),
                 ('is_bot', models.BooleanField(default=False)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('conversation', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='chat.conversation')),
+                ('conversation', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='agents.conversation')),
             ],
         ),
     ]

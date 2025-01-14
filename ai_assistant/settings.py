@@ -55,6 +55,7 @@ ALLOWED_HOSTS = [
     '127.0.0.1',
     '.ngrok.io',  # Allow all ngrok subdomains
     'your-ngrok-subdomain.ngrok.io'
+    'ai-agents-nh6y.onrender.com'
 ]
 
 TEMPLATES = [

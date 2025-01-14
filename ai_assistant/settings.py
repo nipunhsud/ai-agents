@@ -54,8 +54,8 @@ ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
     '.ngrok.io',  # Allow all ngrok subdomains
-    'your-ngrok-subdomain.ngrok.io'
-    'ai-agents-nh6y.onrender.com'
+    'ai-agents-nh6y.onrender.com',
+    'www.purnam.ai'
 ]
 
 TEMPLATES = [
@@ -107,12 +107,14 @@ LOGIN_URL = '/admin/'  # Since we're using admin login
 CSRF_TRUSTED_ORIGINS = [
     'https://*.ngrok.io',
     'http://*.ngrok.io',
+    'https://ai-agents-nh6y.onrender.com',
+    'https://www.purnam.ai'
 ]
 
 CORS_ALLOWED_ORIGINS = [
     'https://ai-agents-nh6y.onrender.com',
-    'https://*.onrender.com',
-    'https://www.purnam.ai/',
-    'localhost'
+    'http://localhost:3000',
+    'http://localhost:8000',
+    'https://www.purnam.ai'
 ]
 CORS_ALLOW_CREDENTIALS = True

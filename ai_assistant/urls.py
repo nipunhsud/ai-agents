@@ -3,7 +3,7 @@ from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
 from agents import views
-from slack_agent.views import test
+from slack_agent.views import test, add_slack_token
 from code_reviewer_agent.views import code_reviewer_view,github_webhook,github_keys_form,submit_keys,success_view
 from help_desk_agent.views import test_help_desk_agent_view,help_desk,help_desk_receive
 from django.contrib.auth import views as auth_views

@@ -8,8 +8,8 @@ from .openai_llm import llm
 import os
 
 
+api_key = os.getenv('GROQ_KEY')
 
-api_key = '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'
 
 def check_groq_api_key(question):
     client = Groq(api_key=api_key)

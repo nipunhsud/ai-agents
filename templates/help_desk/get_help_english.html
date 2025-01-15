@@ -1,0 +1,1123 @@
+<!--
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>English Speech-to-Text Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+            background-color: #f5f5f5;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .chat-container {
+            margin-top: 20px;
+            padding: 20px;
+            min-height: 400px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            text-align: left;
+            background-color: #fff;
+            overflow-y: auto;
+        }
+
+        .message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 10px;
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+
+        .user-message {
+            background-color: #e3f2fd;
+            margin-left: auto;
+            margin-right: 0;
+            text-align: right;
+        }
+
+        .server-message {
+            background-color: #f5f5f5;
+            margin-right: auto;
+            margin-left: 0;
+            text-align: left;
+        }
+
+        #result {
+            margin-top: 20px;
+            padding: 10px;
+            min-height: 50px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            text-align: left;
+            font-size: 16px;
+            background-color: #fff;
+        }
+
+        #startStopButton {
+            background-color: #4caf50;
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        #startStopButton.recording {
+            background-color: #f44336;
+        }
+
+        #startStopButton:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .status {
+            margin-top: 10px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .error {
+            color: #f44336;
+            margin-top: 10px;
+        }
+
+        .play-button {
+            background: none;
+            border: none;
+            color: #4caf50;
+            cursor: pointer;
+            font-size: 1.2em;
+            padding: 5px;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        .play-button:disabled {
+            color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .audio-player {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>English Speech-to-Text Chat</h1>
+        <button id="startStopButton">Start</button>
+        <p class="status" id="status">Click the button to start recording</p>
+        
+        <div id="result">Current speech: ...</div>
+        
+        <div class="chat-container" id="chatContainer">
+            
+        </div>
+    </div>
+
+    <script>
+        let recognition = null;
+        let isRecording = false;
+        let isPlaying = false;
+        let currentAudio = null;
+        const startStopButton = document.getElementById("startStopButton");
+        const chatContainer = document.getElementById("chatContainer");
+
+        function addMessage(text, isUser = true) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'server-message'}`;
+            
+            const textSpan = document.createElement('span');
+            textSpan.textContent = text;
+            messageDiv.appendChild(textSpan);
+
+            if (!isUser) {
+                const playButton = document.createElement('button');
+                playButton.className = 'play-button';
+                playButton.innerHTML = '🔊';
+                playButton.onclick = () => speak(text);
+                messageDiv.appendChild(playButton);
+            }
+
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function speak(text) {
+            // Stop any currently playing audio
+            console.log(text);
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+            }
+
+            // Create new audio element
+            const audio = new Audio();
+            currentAudio = audio;
+            
+            // Generate Google Translate TTS URL
+            const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=${encodeURIComponent(text)}`;
+            audio.src = url;
+            
+            // Stop recording while speaking
+            if (recognition && isRecording) {
+                recognition.stop();
+                isRecording = false;
+                updateUI();
+            }
+
+            audio.onended = () => {
+                isPlaying = false;
+                startStopButton.disabled = false;
+                // Resume recording if it was previously recording
+                if (!isRecording) {
+                    toggleRecording();
+                }
+                currentAudio = null;
+            };
+
+            audio.onplay = () => {
+                isPlaying = true;
+                startStopButton.disabled = true;
+            };
+
+            audio.onerror = (error) => {
+                console.error('Audio playback error:', error);
+                isPlaying = false;
+                startStopButton.disabled = false;
+                currentAudio = null;
+            };
+
+            // Play the audio
+            audio.play().catch(error => {
+                console.error('Error playing audio:', error);
+                isPlaying = false;
+                startStopButton.disabled = false;
+                currentAudio = null;
+            });
+        }
+
+        function initializeSpeechRecognition() {
+            if ("webkitSpeechRecognition" in window) {
+                recognition = new webkitSpeechRecognition();
+                setupRecognition();
+            } else {
+                showError(
+                    "Speech recognition is not supported in your browser. Please use Chrome."
+                );
+            }
+        }
+
+        function setupRecognition() {
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = "en-US";
+
+            recognition.onstart = function() {
+                isRecording = true;
+                updateUI();
+            };
+
+            recognition.onend = function() {
+                isRecording = false;
+                updateUI();
+                // Restart recognition if it was stopped but not due to playing audio
+                if (!isPlaying && !isRecording) {
+                    try {
+                        recognition.start();
+                    } catch (err) {
+                        console.error("Error restarting recognition:", err);
+                    }
+                }
+            };
+
+            recognition.onresult = function(event) {
+                let interimTranscript = "";
+                let finalTranscript = "";
+
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript;
+                        handleSentenceCompletion(transcript);
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+
+                document.getElementById("result").textContent = 
+                    "Current speech: " + (finalTranscript || interimTranscript || "...");
+            };
+
+            async function handleSentenceCompletion(text) {
+                if (!text.trim()) return;
+
+                // Add user message to chat
+                addMessage(text, true);
+
+                try {
+                    // Send to backend API
+                    const response = await fetch('http://localhost:8000/help_desk_receive/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            text: text,
+                            timestamp: new Date().toISOString(),
+                            language: 'en-US'
+                        })
+                    });
+
+                    if (!response.ok) throw new Error('API Error');
+                    const data = await response.json();
+                    
+                    // Add server response to chat
+                    addMessage(data.agdum, false);
+                    
+                    // Automatically speak the response
+                    speak(data.agdum);
+
+                } catch (error) {
+                    console.error('Error:', error);
+                    showError("Error connecting to server");
+                }
+            }
+
+            recognition.onerror = function(event) {
+                showError("Error: " + event.error);
+                isRecording = false;
+                updateUI();
+            };
+        }
+
+        function toggleRecording() {
+            if (!recognition) {
+                initializeSpeechRecognition();
+            }
+
+            if (isRecording) {
+                recognition.stop();
+            } else {
+                try {
+                    recognition.start();
+                } catch (err) {
+                    showError(
+                        "Error starting recording. Please try again."
+                    );
+                }
+            }
+        }
+
+        function updateUI() {
+            const button = document.getElementById("startStopButton");
+            const status = document.getElementById("status");
+
+            if (isRecording) {
+                button.textContent = "Stop";
+                button.classList.add("recording");
+                status.textContent = "Recording...";
+            } else {
+                button.textContent = "Start";
+                button.classList.remove("recording");
+                status.textContent = "Click the button to start recording";
+            }
+
+            button.disabled = isPlaying;
+        }
+
+        function showError(message) {
+            const status = document.getElementById("status");
+            status.textContent = message;
+            status.classList.add("error");
+        }
+
+        // Add event listener for start/stop button
+        document.getElementById("startStopButton").addEventListener("click", toggleRecording);
+
+        // Initialize speech recognition
+        initializeSpeechRecognition();
+    </script>
+</body>
+</html>
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>English Speech-to-Text Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+            background-color: #f5f5f5;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .chat-container {
+            margin-top: 20px;
+            padding: 20px;
+            min-height: 400px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            text-align: left;
+            background-color: #fff;
+            overflow-y: auto;
+        }
+
+        .message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 10px;
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+
+        .user-message {
+            background-color: #e3f2fd;
+            margin-left: auto;
+            margin-right: 0;
+            text-align: right;
+        }
+
+        .server-message {
+            background-color: #f5f5f5;
+            margin-right: auto;
+            margin-left: 0;
+            text-align: left;
+        }
+
+        #result {
+            margin-top: 20px;
+            padding: 10px;
+            min-height: 50px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            text-align: left;
+            font-size: 16px;
+            background-color: #fff;
+        }
+
+        #startStopButton {
+            background-color: #4caf50;
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        #startStopButton.recording {
+            background-color: #f44336;
+        }
+
+        #startStopButton:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .status {
+            margin-top: 10px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .error {
+            color: #f44336;
+            margin-top: 10px;
+        }
+
+        .play-button {
+            background: none;
+            border: none;
+            color: #4caf50;
+            cursor: pointer;
+            font-size: 1.2em;
+            padding: 5px;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        .play-button:disabled {
+            color: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>English Speech-to-Text Chat</h1>
+        <button id="startStopButton">Start</button>
+        <p class="status" id="status">Click the button to start recording</p>
+        
+        <div id="result">Current speech: ...</div>
+        
+        <div class="chat-container" id="chatContainer">
+            
+        </div>
+    </div>
+
+    <script>
+        let recognition = null;
+        let isRecording = false;
+        let isPlaying = false;
+        let speechSynthesis = window.speechSynthesis;
+        let currentUtterance = null;
+        const startStopButton = document.getElementById("startStopButton");
+        const chatContainer = document.getElementById("chatContainer");
+
+        function addMessage(text, isUser = true) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'server-message'}`;
+            
+            const textSpan = document.createElement('span');
+            textSpan.textContent = text;
+            messageDiv.appendChild(textSpan);
+
+            if (!isUser) {
+                const playButton = document.createElement('button');
+                playButton.className = 'play-button';
+                playButton.innerHTML = '🔊';
+                playButton.onclick = () => speak(text);
+                messageDiv.appendChild(playButton);
+            }
+
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function speak(text) {
+            // Cancel any ongoing speech
+            if (speechSynthesis.speaking) {
+                speechSynthesis.cancel();
+            }
+
+            // Stop recording while speaking
+            if (recognition && isRecording) {
+                recognition.stop();
+                isRecording = false;
+                updateUI();
+            }
+
+            // Create new utterance
+            const utterance = new SpeechSynthesisUtterance(text);
+            currentUtterance = utterance;
+            
+            // Configure utterance
+            utterance.lang = 'en-US';
+            utterance.rate = 1.0;
+            utterance.pitch = 1.0;
+            utterance.volume = 1.0;
+
+            // Event handlers
+            utterance.onstart = () => {
+                isPlaying = true;
+                startStopButton.disabled = true;
+            };
+
+            utterance.onend = () => {
+                isPlaying = false;
+                startStopButton.disabled = false;
+                currentUtterance = null;
+                // Resume recording if it was previously recording
+                if (!isRecording) {
+                    toggleRecording();
+                }
+            };
+
+            utterance.onerror = (event) => {
+                console.error('Speech synthesis error:', event);
+                isPlaying = false;
+                startStopButton.disabled = false;
+                currentUtterance = null;
+            };
+
+            // Speak the text
+            speechSynthesis.speak(utterance);
+        }
+
+        function initializeSpeechRecognition() {
+            if ("webkitSpeechRecognition" in window) {
+                recognition = new webkitSpeechRecognition();
+                setupRecognition();
+            } else {
+                showError(
+                    "Speech recognition is not supported in your browser. Please use Chrome."
+                );
+            }
+        }
+
+        function setupRecognition() {
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = "en-US";
+
+            recognition.onstart = function() {
+                isRecording = true;
+                updateUI();
+            };
+
+            recognition.onend = function() {
+                isRecording = false;
+                updateUI();
+                // Restart recognition if it was stopped but not due to playing audio
+                if (!isPlaying && !isRecording) {
+                    try {
+                        recognition.start();
+                    } catch (err) {
+                        console.error("Error restarting recognition:", err);
+                    }
+                }
+            };
+
+            recognition.onresult = function(event) {
+                let interimTranscript = "";
+                let finalTranscript = "";
+
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript;
+                        handleSentenceCompletion(transcript);
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+
+                document.getElementById("result").textContent = 
+                    "Current speech: " + (finalTranscript || interimTranscript || "...");
+            };
+
+            async function handleSentenceCompletion(text) {
+                if (!text.trim()) return;
+
+                // Add user message to chat
+                addMessage(text, true);
+
+                try {
+                    // Send to backend API
+                    const response = await fetch('http://localhost:8000/help_desk_receive/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            text: text,
+                            timestamp: new Date().toISOString(),
+                            language: 'en-US'
+                        })
+                    });
+
+                    if (!response.ok) throw new Error('API Error');
+                    const data = await response.json();
+                    
+                    // Add server response to chat
+                    addMessage(data.agdum, false);
+                    
+                    // Automatically speak the response
+                    speak(data.agdum);
+
+                } catch (error) {
+                    console.error('Error:', error);
+                    showError("Error connecting to server");
+                }
+            }
+
+            recognition.onerror = function(event) {
+                showError("Error: " + event.error);
+                isRecording = false;
+                updateUI();
+            };
+        }
+
+        function toggleRecording() {
+            if (!recognition) {
+                initializeSpeechRecognition();
+            }
+
+            if (isRecording) {
+                recognition.stop();
+            } else {
+                try {
+                    recognition.start();
+                } catch (err) {
+                    showError(
+                        "Error starting recording. Please try again."
+                    );
+                }
+            }
+        }
+
+        function updateUI() {
+            const button = document.getElementById("startStopButton");
+            const status = document.getElementById("status");
+
+            if (isRecording) {
+                button.textContent = "Stop";
+                button.classList.add("recording");
+                status.textContent = "Recording...";
+            } else {
+                button.textContent = "Start";
+                button.classList.remove("recording");
+                status.textContent = "Click the button to start recording";
+            }
+
+            button.disabled = isPlaying;
+        }
+
+        function showError(message) {
+            const status = document.getElementById("status");
+            status.textContent = message;
+            status.classList.add("error");
+        }
+
+        // Add event listener for start/stop button
+        document.getElementById("startStopButton").addEventListener("click", toggleRecording);
+
+        // Initialize speech recognition
+        initializeSpeechRecognition();
+    </script>
+</body>
+</html>
+
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>English Speech-to-Text Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+            background-color: #f5f5f5;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .chat-container {
+            margin-top: 20px;
+            padding: 20px;
+            min-height: 400px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            text-align: left;
+            background-color: #fff;
+            overflow-y: auto;
+        }
+
+        .message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 10px;
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+
+        .user-message {
+            background-color: #e3f2fd;
+            margin-left: auto;
+            margin-right: 0;
+            text-align: right;
+        }
+
+        .server-message {
+            background-color: #f5f5f5;
+            margin-right: auto;
+            margin-left: 0;
+            text-align: left;
+        }
+
+        #result {
+            margin-top: 20px;
+            padding: 10px;
+            min-height: 50px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            text-align: left;
+            font-size: 16px;
+            background-color: #fff;
+        }
+
+        #startStopButton {
+            background-color: #4caf50;
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        #startStopButton.recording {
+            background-color: #f44336;
+        }
+
+        #startStopButton:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .status {
+            margin-top: 10px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .error {
+            color: #f44336;
+            margin-top: 10px;
+        }
+
+        .play-button {
+            background: none;
+            border: none;
+            color: #4caf50;
+            cursor: pointer;
+            font-size: 1.2em;
+            padding: 5px;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        .play-button:disabled {
+            color: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>English Speech-to-Text Chat</h1>
+        <select id="voiceSelect" style="margin-bottom: 10px; padding: 5px;"></select>
+        <button id="startStopButton">Start</button>
+        <p class="status" id="status">Click the button to start recording</p>
+        
+        <div id="result">Current speech: ...</div>
+        
+        <div class="chat-container" id="chatContainer">
+            <!-- Messages will be added here dynamically -->
+        </div>
+    </div>
+
+    <script>
+        let recognition = null;
+        let isRecording = false;
+        let isPlaying = false;
+        let speechSynthesis = window.speechSynthesis;
+        let currentUtterance = null;
+        const startStopButton = document.getElementById("startStopButton");
+        const chatContainer = document.getElementById("chatContainer");
+
+        function addMessage(text, isUser = true) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'server-message'}`;
+            
+            const textSpan = document.createElement('span');
+            textSpan.textContent = text;
+            messageDiv.appendChild(textSpan);
+
+            if (!isUser) {
+                const playButton = document.createElement('button');
+                playButton.className = 'play-button';
+                playButton.innerHTML = '🔊';
+                playButton.onclick = () => speak(text);
+                messageDiv.appendChild(playButton);
+            }
+
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function speak(text) {
+            // Cancel any ongoing speech
+            if (speechSynthesis.speaking) {
+                speechSynthesis.cancel();
+            }
+
+            // Stop recording while speaking
+            if (recognition && isRecording) {
+                recognition.stop();
+                isRecording = false;
+                updateUI();
+            }
+
+            // Create new utterance
+            const utterance = new SpeechSynthesisUtterance(text);
+            currentUtterance = utterance;
+            
+            // Get available voices
+            const voices = speechSynthesis.getVoices();
+            
+            // Get the selected voice
+            const selectedVoiceName = document.getElementById('voiceSelect').value;
+            const selectedVoice = voices.find(voice => voice.name === selectedVoiceName) || voices[0];
+            
+            // Configure utterance
+            utterance.voice = selectedVoice;
+            utterance.lang = 'en-US';
+            utterance.rate = 1.0;
+            utterance.pitch = 1.0;
+            utterance.volume = 1.0;
+
+            // Event handlers
+            utterance.onstart = () => {
+                isPlaying = true;
+                startStopButton.disabled = true;
+            };
+
+            utterance.onend = () => {
+                isPlaying = false;
+                startStopButton.disabled = false;
+                currentUtterance = null;
+                // Resume recording if it was previously recording
+                if (!isRecording) {
+                    toggleRecording();
+                }
+            };
+
+            utterance.onerror = (event) => {
+                console.error('Speech synthesis error:', event);
+                isPlaying = false;
+                startStopButton.disabled = false;
+                currentUtterance = null;
+            };
+
+            // Speak the text
+            speechSynthesis.speak(utterance);
+        }
+
+        function initializeSpeechRecognition() {
+            if ("webkitSpeechRecognition" in window) {
+                recognition = new webkitSpeechRecognition();
+                setupRecognition();
+            } else {
+                showError(
+                    "Speech recognition is not supported in your browser. Please use Chrome."
+                );
+            }
+        }
+
+        function setupRecognition() {
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = "en-US";
+
+            recognition.onstart = function() {
+                isRecording = true;
+                updateUI();
+            };
+
+            recognition.onend = function() {
+                isRecording = false;
+                updateUI();
+                // Restart recognition if it was stopped but not due to playing audio
+                if (!isPlaying && !isRecording) {
+                    try {
+                        recognition.start();
+                    } catch (err) {
+                        console.error("Error restarting recognition:", err);
+                    }
+                }
+            };
+
+            recognition.onresult = function(event) {
+                let interimTranscript = "";
+                let finalTranscript = "";
+
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript;
+                        handleSentenceCompletion(transcript);
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+
+                document.getElementById("result").textContent = 
+                    "Current speech: " + (finalTranscript || interimTranscript || "...");
+            };
+
+            async function handleSentenceCompletion(text) {
+                if (!text.trim()) return;
+
+                // Add user message to chat
+                addMessage(text, true);
+
+                try {
+                    // Send to backend API
+                    const response = await fetch('http://localhost:8000/help_desk_receive/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            text: text,
+                            timestamp: new Date().toISOString(),
+                            language: 'en-US'
+                        })
+                    });
+
+                    if (!response.ok) throw new Error('API Error');
+                    const data = await response.json();
+                    
+                    // Add server response to chat
+                    addMessage(data.agdum, false);
+                    
+                    // Automatically speak the response
+                    speak(data.agdum);
+
+                } catch (error) {
+                    console.error('Error:', error);
+                    showError("Error connecting to server");
+                }
+            }
+
+            recognition.onerror = function(event) {
+                showError("Error: " + event.error);
+                isRecording = false;
+                updateUI();
+            };
+        }
+
+        function toggleRecording() {
+            if (!recognition) {
+                initializeSpeechRecognition();
+            }
+
+            if (isRecording) {
+                recognition.stop();
+            } else {
+                try {
+                    recognition.start();
+                } catch (err) {
+                    showError(
+                        "Error starting recording. Please try again."
+                    );
+                }
+            }
+        }
+
+        function updateUI() {
+            const button = document.getElementById("startStopButton");
+            const status = document.getElementById("status");
+
+            if (isRecording) {
+                button.textContent = "Stop";
+                button.classList.add("recording");
+                status.textContent = "Recording...";
+            } else {
+                button.textContent = "Start";
+                button.classList.remove("recording");
+                status.textContent = "Click the button to start recording";
+            }
+
+            button.disabled = isPlaying;
+        }
+
+        function showError(message) {
+            const status = document.getElementById("status");
+            status.textContent = message;
+            status.classList.add("error");
+        }
+
+        // Add event listener for start/stop button
+        document.getElementById("startStopButton").addEventListener("click", toggleRecording);
+
+        // Function to populate voice list
+        function populateVoiceList() {
+            const voiceSelect = document.getElementById('voiceSelect');
+            voiceSelect.innerHTML = '';
+            
+            const voices = speechSynthesis.getVoices();
+            
+            // Filter for English voices
+            const englishVoices = voices.filter(voice => voice.lang.includes('en-'));
+            
+            englishVoices.forEach(voice => {
+                const option = document.createElement('option');
+                option.textContent = `${voice.name} (${voice.lang})`;
+                option.value = voice.name;
+                voiceSelect.appendChild(option);
+            });
+        }
+
+        // Handle voice list loading
+        speechSynthesis.onvoiceschanged = populateVoiceList;
+        
+        // Initialize voice list and speech recognition
+        populateVoiceList();
+        initializeSpeechRecognition();
+    </script>
+</body>
+</html>

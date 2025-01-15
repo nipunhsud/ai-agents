@@ -5,7 +5,6 @@ import json
 from enum import Enum
 import logging
 from openai import AsyncOpenAI
-from slack_agent.planner import get_users_information
 
 # Get logger
 logger = logging.getLogger(__name__)
@@ -24,7 +23,6 @@ class OutputFormat(Enum):
 
 class TechnicalWriter:
     def __init__(self, api_key: str):
-        users = get_users_information()
         """Initialize the Technical Writer AI agent.
         
         Args:

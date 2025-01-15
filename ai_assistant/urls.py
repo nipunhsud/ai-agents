@@ -32,18 +32,10 @@ urlpatterns = [
     path('github_keys_form/', github_keys_form, name='github_keys_form'),
     path('submit_keys/', submit_keys, name='submit_keys'),
     path('success_view/', success_view, name='success_page'),
-<<<<<<< HEAD
-
-    path("email/",views.email_assistant_page, name='email_assistant_page'),
-    path('fetch_emails/', views.fetch_emails, name='fetch_emails'),
-    
-  
-=======
     path('test_help_desk_agent_view/', test_help_desk_agent_view, name='test_help_desk_agent_view'),
     path('help_desk/', help_desk, name='help_desk'),
     path('help_desk_receive/', help_desk_receive, name='help_desk_receive'),
     
->>>>>>> 74d417d (update slack agent it can be used as agent or as tools another agent)
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 

@@ -2,8 +2,13 @@ from django.contrib import admin
 from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
+<<<<<<< HEAD
 from agents import views
 from slack_agent.views import test, add_slack_token
+=======
+from chat import views
+from slack_agent.views import test,add_slack_token,handle_message,send_messages,slack_success_view
+>>>>>>> 816f765 (added user interface in slack agent)
 from code_reviewer_agent.views import code_reviewer_view,github_webhook,github_keys_form,submit_keys,success_view
 from help_desk_agent.views import test_help_desk_agent_view,help_desk,help_desk_receive
 from help_desk_agent.views import test_help_desk_agent_view,help_desk,help_desk_receive
@@ -18,9 +23,15 @@ urlpatterns = [
     path('login/', auth_views.LoginView.as_view(), name='login'),
     path('agent/', views.AgentView.as_view(), name='agent'),
     path('react/', views.react_page, name='react_page'), 
+<<<<<<< HEAD
     path('query/', views.query_page, name='query_page'), 
+=======
+    path('test/', test, name='test'), 
+>>>>>>> 816f765 (added user interface in slack agent)
     path("gift/",views.gift_prediction_view, name='gift'),
-    path("slack/",test, name='slack'),
+    path("slack/",handle_message, name='slack'),
+    path("send-slack/",send_messages, name='send-slack'),
+    path("slack-success/",slack_success_view, name='slack-success'),
     path('writer/', views.technical_writer_view, name='technical_writer'),
     path("add-slack-token/",add_slack_token, name='add_slack_token'),
     path("add-slack-token/",add_slack_token, name='add_slack_token'),
@@ -38,6 +49,7 @@ urlpatterns = [
     path('help_desk/', help_desk, name='help_desk'),
     path('help_desk_receive/', help_desk_receive, name='help_desk_receive'),
     path("slack_assistant/",views.SlackAssistantView.as_view(), name='slack_assistant'),
+    
     
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 

@@ -206,7 +206,7 @@
 </body>
 </html>
 
--->
+
 
 
 <!DOCTYPE html>
@@ -295,7 +295,7 @@
             const csrftoken = getCookie('csrftoken');
             
             try {
-                const response = await fetch('/slack2/', {
+                const response = await fetch('/slack/', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -307,6 +307,7 @@
 
                 // Instead of handling the response as JSON, we'll handle the HTML response
                 const html = await response.text();
+                //console.log(html);
                 // Replace the entire page content with the new HTML
                 document.documentElement.innerHTML = html;
                 
@@ -317,5 +318,63 @@
             }
         }
     </script>
+</body>
+</html>
+
+-->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Send Message</title>
+    <style>
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .loading {
+            display: inline-block;
+            margin-left: 10px;
+            display: none;
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Send Message</h2>
+        
+        
+        
+        <form method="post" action="{% url 'slack' %}">
+            <div class="form-group">
+                <textarea name="message" rows="4" placeholder="Enter your event data here" required></textarea>
+            </div>
+            <button type="submit">Send Message</button>
+        </form>
+    </div>
 </body>
 </html>

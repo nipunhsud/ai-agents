@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slack Message Preview</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+
+        .navbar {
+            background-color: #4a154b;
+            color: white;
+            padding: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .navbar h1 {
+            font-size: 1.5rem;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+
+        .preview-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .message-navigation {
+            text-align: center;
+            margin: 10px 0 20px;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .editor-container {
+            margin: 20px 0;
+        }
+
+        .message-section {
+            margin-bottom: 20px;
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 6px;
+        }
+
+        .section-header {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #1d1c1d;
+            font-size: 1.1rem;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #1264a3;
+            box-shadow: 0 0 0 2px rgba(18, 100, 163, 0.1);
+        }
+
+        textarea.input-field {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+
+        .nav-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .nav-btn.primary {
+            background-color: #007a5a;
+            color: white;
+        }
+
+        .nav-btn.primary:hover {
+            background-color: #006c4f;
+        }
+
+        .nav-btn.secondary {
+            background-color: #f4f4f4;
+            color: #1d1c1d;
+            border: 1px solid #ddd;
+        }
+
+        .nav-btn.secondary:hover {
+            background-color: #eee;
+        }
+
+        .nav-btn:disabled {
+            background-color: #ddd;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .type-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            background-color: #e8f5fa;
+            color: #1264a3;
+            border-radius: 16px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-bottom: 15px;
+        }
+
+        .error {
+            color: #e01e5a;
+            margin-top: 5px;
+            font-size: 14px;
+            padding: 8px;
+            background-color: #ffeaee;
+            border-radius: 4px;
+        }
+
+        .recipients-help {
+            font-size: 0.85rem;
+            color: #616061;
+            margin-top: 5px;
+        }
+
+        .success-message {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            background-color: #007a5a;
+            color: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            display: none;
+        }
+
+        .info-reference-container {
+            display: flex;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .info-reference-column {
+            flex: 1;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 15px;
+        }
+
+        .info-reference-header {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1d1c1d;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .info-reference-box {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #4a4a4a;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <h1>Slack Message Preview</h1>
+    </div>
+
+    <div class="container">
+        <div class="preview-container">
+            <h2>Message Preview</h2>
+            <div class="message-navigation">
+                Message <span id="currentIndex">1</span> of <span id="totalMessages">0</span>
+            </div>
+
+            <div class="info-reference-container">
+                <div class="info-reference-column">
+                    <div class="info-reference-header">Users List</div>
+                    <div class="info-reference-box">
+                        <!--{{ users_info }}-->
+                        {% for user in users_info %}
+                            <p>{{ user }}</p>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="info-reference-column">
+                    <div class="info-reference-header">Channels List</div>
+                    <div class="info-reference-box">
+                        <!--{{ channels_info }}-->
+                        {% for channel in channels_info %}
+                            <p>Name:{{ channel.name }} - ID:{{ channel.id }}</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div id="messageEditor" class="editor-container">
+                <!-- Message content will be populated here -->
+                
+            </div>
+
+            <div class="button-container">
+                <button onclick="previousMessage()" id="prevBtn" class="nav-btn secondary">Previous</button>
+                <button onclick="skipMessage()" id="skipBtn" class="nav-btn secondary">Skip</button>
+                <button onclick="nextMessage()" id="nextBtn" class="nav-btn primary">Next</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="successMessage" class="success-message">
+        Messages sent successfully!
+    </div>
+
+    <script>
+        //let messagess = '{{messages}}';
+        let messages = JSON.parse('{{ messages|escapejs }}');
+        console.log(typeof messages)
+        console.log(messages);
+        //const jsonObject = JSON.parse(messages);
+        //console.log(typeof jsonObject)
+
+
+
+
+        let currentIndex = 0;
+
+        function updateEditor() {
+            const message = messages[currentIndex];
+            const isLastMessage = currentIndex === messages.length - 1;
+            const editor = document.getElementById('messageEditor');
+            
+            // Update navigation
+            document.getElementById('currentIndex').textContent = currentIndex + 1;
+            document.getElementById('totalMessages').textContent = messages.length;
+            document.getElementById('prevBtn').disabled = currentIndex === 0;
+            document.getElementById('nextBtn').textContent = isLastMessage ? 'Send' : 'Next';
+
+            // Generate editor HTML based on message type
+            let editorHtml = `
+                <div class="type-badge">${message.type.replace('_', ' ').toUpperCase()}</div>
+                <div class="message-section">
+            `;
+
+            if (message.type === 'simple_message') {
+                editorHtml += `
+                    <div class="section-header">Message Content</div>
+                    <textarea 
+                        id="messageContent" 
+                        class="input-field"
+                        onchange="updateMessageContent()"
+                    >${message.content}</textarea>
+                `;
+            } else {
+                editorHtml += `
+                    <div class="section-header">Announcement Details</div>
+                    <select 
+                        id="announcementType" 
+                        class="input-field"
+                        onchange="updateAnnouncementContent()">
+                        <option value="feature" ${message.content.type === 'feature' ? 'selected' : ''}>Feature</option>
+                        <option value="company" ${message.content.type === 'company' ? 'selected' : ''}>Company</option>
+                        <option value="milestone" ${message.content.type === 'milestone' ? 'selected' : ''}>Milestone</option>
+                        <option value="event" ${message.content.type === 'event' ? 'selected' : ''}>Event</option>
+                    </select>
+                    <input 
+                        type="text" 
+                        id="announcementTitle" 
+                        class="input-field" 
+                        value="${message.content.title}"
+                        placeholder="Title"
+                        onchange="updateAnnouncementContent()">
+                    <textarea 
+                        id="announcementDescription" 
+                        class="input-field"
+                        placeholder="Description"
+                        onchange="updateAnnouncementContent()"
+                    >${message.content.description}</textarea>
+                `;
+            }
+
+            editorHtml += `
+                </div>
+                <div class="message-section">
+                    <div class="section-header">Recipients</div>
+                    <input 
+                        type="text" 
+                        id="userIds" 
+                        class="input-field" 
+                        value="${message.recipients.users.join(', ')}"
+                        placeholder="User IDs (comma-separated)"
+                        onchange="updateRecipients()">
+                    <div class="recipients-help">Enter user IDs separated by commas</div>
+                    
+                    <input 
+                        type="text" 
+                        id="channelIds" 
+                        class="input-field" 
+                        value="${message.recipients.channels.join(', ')}"
+                        placeholder="Channel IDs (comma-separated)"
+                        onchange="updateRecipients()">
+                    <div class="recipients-help">Enter channel IDs separated by commas</div>
+                </div>
+            `;
+
+            editor.innerHTML = editorHtml;
+        }
+
+        function updateMessageContent() {
+            const message = messages[currentIndex];
+            if (message.type === 'simple_message') {
+                message.content = document.getElementById('messageContent').value;
+            }
+        }
+
+        function updateAnnouncementContent() {
+            const message = messages[currentIndex];
+            if (message.type === 'announcement') {
+                message.content.type = document.getElementById('announcementType').value;
+                message.content.title = document.getElementById('announcementTitle').value;
+                message.content.description = document.getElementById('announcementDescription').value;
+            }
+        }
+
+        function updateRecipients() {
+            const message = messages[currentIndex];
+            message.recipients.users = document.getElementById('userIds').value
+                .split(',')
+                .map(id => id.trim())
+                .filter(id => id.length > 0);
+            message.recipients.channels = document.getElementById('channelIds').value
+                .split(',')
+                .map(id => id.trim())
+                .filter(id => id.length > 0);
+        }
+
+        function previousMessage() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                updateEditor();
+            }
+        }
+
+        function nextMessage() {
+            if (currentIndex < messages.length - 1) {
+                currentIndex++;
+                updateEditor();
+            } else {
+                sendMessages();
+            }
+        }
+
+        function skipMessage() {
+            messages.splice(currentIndex, 1);
+            if (messages.length === 0) {
+                window.location.href = '/slack/';  // Adjust this URL as needed
+                return;
+            }
+            if (currentIndex >= messages.length) {
+                currentIndex = messages.length - 1;
+            }
+            updateEditor();
+        }
+
+        function showSuccessMessage() {
+            const successMessage = document.getElementById('successMessage');
+            successMessage.style.display = 'block';
+            setTimeout(() => {
+                successMessage.style.display = 'none';
+            }, 3000);
+        }
+
+        function sendMessages() {
+            fetch('/send-slack/', {  // Adjust this URL as needed
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    //'X-CSRFToken': "document.querySelector('[name=csrfmiddlewaretoken]').value"
+                },
+                body: JSON.stringify({ messages: messages })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showSuccessMessage();
+                    setTimeout(() => {
+                        window.location.href = '/slack-success/';  // Adjust this URL as needed
+                    }, 2000);
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('Error sending messages: ' + error);
+            });
+        }
+
+        // Initialize the editor when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            if (messages.length > 0) {
+                updateEditor();
+            } else {
+                document.getElementById('messageEditor').innerHTML = 
+                    '<div class="error">No messages to preview</div>';
+            }
+        });
+    </script>
+</body>
+</html>

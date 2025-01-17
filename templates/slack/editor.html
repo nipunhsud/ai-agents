@@ -1,0 +1,265 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="message-editor" id="messageEditor">
+    <div class="message-header">
+        <h2>Message Editor</h2>
+        <span class="message-type" id="messageType">Type</span>
+    </div>
+    
+    <div class="navigation-info">
+        Message <span id="currentIndex">1</span> of <span id="totalMessages">1</span>
+    </div>
+    
+    <!-- Content Section -->
+    <div class="content-section">
+        <div class="section-title">Content</div>
+        
+        <!-- Simple Message Content -->
+        <div id="simpleMessageContent">
+            <textarea id="messageContent" placeholder="Enter message content"></textarea>
+        </div>
+        
+        <!-- Announcement Content -->
+        <div id="announcementContent" style="display: none;">
+            <select id="announcementType" style="margin-bottom: 10px;">
+                <option value="feature">Feature</option>
+                <option value="company">Company</option>
+                <option value="milestone">Milestone</option>
+                <option value="event">Event</option>
+            </select>
+            <input type="text" id="announcementTitle" placeholder="Title">
+            <textarea id="announcementDescription" placeholder="Description"></textarea>
+        </div>
+    </div>
+    
+    <!-- Recipients Section -->
+    <div class="recipients-section">
+        <div class="section-title">Recipients</div>
+        <input type="text" id="userIds" placeholder="User IDs (comma-separated)">
+        <input type="text" id="channelIds" placeholder="Channel IDs (comma-separated)">
+    </div>
+    
+    <!-- Navigation Buttons -->
+    <div class="buttons">
+        <button class="secondary-button" id="prevButton" onclick="previousMessage()">Previous</button>
+        <button class="secondary-button" id="skipButton" onclick="skipMessage()">Skip</button>
+        <button class="primary-button" id="nextButton" onclick="nextMessage()">Next</button>
+    </div>
+</div>
+
+<style>
+    .message-editor {
+        max-width: 800px;
+        margin: 20px auto;
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .message-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .message-type {
+        font-size: 14px;
+        padding: 4px 8px;
+        background: #e1e1e1;
+        border-radius: 4px;
+    }
+    
+    .content-section, .recipients-section {
+        margin-bottom: 20px;
+    }
+    
+    .section-title {
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
+    
+    input, textarea, select {
+        width: 100%;
+        padding: 8px;
+        margin-bottom: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-sizing: border-box;
+    }
+    
+    textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+    
+    .buttons {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 20px;
+    }
+    
+    button {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    
+    .primary-button {
+        background-color: #1a73e8;
+        color: white;
+    }
+    
+    .secondary-button {
+        background-color: #e1e1e1;
+        color: #333;
+    }
+    
+    button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+</style>
+
+<script>
+    let messages = [];
+    let currentMessageIndex = 0;
+    
+    // Initialize the editor with messages
+    function initializeEditor(messageData) {
+        messages = messageData;
+        currentMessageIndex = 0;
+        updateDisplay();
+    }
+    
+    // Update the display with current message data
+    function updateDisplay() {
+        const message = messages[currentMessageIndex];
+        const isLastMessage = currentMessageIndex === messages.length - 1;
+        
+        document.getElementById('currentIndex').textContent = currentMessageIndex + 1;
+        document.getElementById('totalMessages').textContent = messages.length;
+        document.getElementById('messageType').textContent = message.type;
+        
+        const isSimpleMessage = message.type === 'simple_message';
+        document.getElementById('simpleMessageContent').style.display = isSimpleMessage ? 'block' : 'none';
+        document.getElementById('announcementContent').style.display = isSimpleMessage ? 'none' : 'block';
+        
+        if (isSimpleMessage) {
+            document.getElementById('messageContent').value = message.content;
+        } else {
+            document.getElementById('announcementType').value = message.content.type;
+            document.getElementById('announcementTitle').value = message.content.title;
+            document.getElementById('announcementDescription').value = message.content.description;
+        }
+        
+        document.getElementById('userIds').value = message.recipients.users.join(', ');
+        document.getElementById('channelIds').value = message.recipients.channels.join(', ');
+        
+        document.getElementById('prevButton').disabled = currentMessageIndex === 0;
+        document.getElementById('nextButton').textContent = isLastMessage ? 'Send' : 'Next';
+    }
+    
+    // Save current message changes
+    function saveCurrentMessageChanges() {
+        const message = messages[currentMessageIndex];
+        
+        if (message.type === 'simple_message') {
+            message.content = document.getElementById('messageContent').value;
+        } else {
+            message.content.type = document.getElementById('announcementType').value;
+            message.content.title = document.getElementById('announcementTitle').value;
+            message.content.description = document.getElementById('announcementDescription').value;
+        }
+        
+        message.recipients.users = document.getElementById('userIds').value
+            .split(',')
+            .map(id => id.trim())
+            .filter(id => id.length > 0);
+            
+        message.recipients.channels = document.getElementById('channelIds').value
+            .split(',')
+            .map(id => id.trim())
+            .filter(id => id.length > 0);
+    }
+    
+    function previousMessage() {
+        if (currentMessageIndex > 0) {
+            saveCurrentMessageChanges();
+            currentMessageIndex--;
+            updateDisplay();
+        }
+    }
+    
+    function nextMessage() {
+        saveCurrentMessageChanges();
+        
+        if (currentMessageIndex < messages.length - 1) {
+            currentMessageIndex++;
+            updateDisplay();
+        } else {
+            // Send messages to Django backend
+            fetch('{% url "send_messages" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ messages: messages })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert('Messages sent successfully!');
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            });
+        }
+    }
+    
+    function skipMessage() {
+        messages.splice(currentMessageIndex, 1);
+        if (currentMessageIndex >= messages.length) {
+            currentMessageIndex = Math.max(0, messages.length - 1);
+        }
+        if (messages.length === 0) {
+            alert('No messages left to send');
+            window.location.reload();
+        } else {
+            updateDisplay();
+        }
+    }
+    
+    // Initial load - get messages from query
+    document.addEventListener('DOMContentLoaded', function() {
+        const queryInput = document.getElementById('queryInput');
+        const generateButton = document.getElementById('generateButton');
+        
+        generateButton.addEventListener('click', function() {
+            fetch('{% url "preview_messages" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ query: queryInput.value })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    initializeEditor(data.messages);
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

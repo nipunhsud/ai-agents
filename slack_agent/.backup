@@ -1,0 +1,301 @@
+
+'''
+@login_required
+@csrf_exempt  # Remove in production and handle CSRF properly
+def preview_messages(request):
+    """Generate message previews from user query"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            query = data.get('query')
+            
+            # Get user's Slack token
+            slack_token = SlackToken.objects.filter(username=request.user.username).first()
+            if not slack_token:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'No Slack token found. Please add your Slack token first.'
+                })
+            
+            # Initialize agent
+            agent = SlackAgent(
+                slack_token=slack_token.token,
+                openai_api_key=os.getenv('OPENAI_API_KEY')
+            )
+            
+            # Generate previews
+            agent.previewed_messages = []  # Clear previous previews
+            agent.agent.run([
+                {"role": "system", "content": agent.system_message},
+                {"role": "user", "content": query}
+            ])
+            
+            return JsonResponse({
+                'status': 'success',
+                'messages': agent.previewed_messages
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'status': 'error',
+                'message': str(e)
+            })
+    
+    return JsonResponse({
+        'status': 'error',
+        'message': 'Invalid request method'
+    })
+
+def preview_messages(request):
+    """Generate message previews from user query"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            query = data.get('query')
+            
+            # Get user's Slack token
+            slack_token = SlackToken.objects.filter(username=request.user.username).first()
+            if not slack_token:
+                return render(request, 'error.html', {
+                    'error_message': 'No Slack token found. Please add your Slack token first.'
+                })
+            
+            # Initialize agent
+            agent = SlackAgent(
+                slack_token=slack_token.token,
+                openai_api_key=os.getenv('OPENAI_API_KEY')
+            )
+            
+            # Generate previews
+            agent.previewed_messages = []  # Clear previous previews
+            agent.agent.run([
+                {"role": "system", "content": agent.system_message},
+                {"role": "user", "content": query}
+            ])
+            
+            # Render template with preview data
+            print(agent.previewed_messages)
+            return render(request, 'slack/message_preview.html', {
+                'messages': agent.previewed_messages,
+                'users_info': agent.users_info,
+                'channels_info': agent.channels_info
+            })
+            
+        except Exception as e:
+            return render(request, 'error.html', {
+                'error_message': str(e)
+            })
+    
+    return render(request, 'error.html', {
+        'error_message': 'Invalid request method'
+    })
+'''
+
+'''
+
+class SlackAgent:
+    def __init__(self, slack_token: str, openai_api_key: str):
+        self.slack_tools = SlackTools(slack_token)
+        
+        self.llm = ChatOpenAI(
+            temperature=0,
+            openai_api_key=openai_api_key,
+            model="gpt-4"
+        )
+        
+        self.memory = ConversationBufferMemory(
+            memory_key="chat_history",
+            return_messages=True
+        )
+        
+        # Initialize workspace info
+        self.users_info = self.slack_tools.get_users_information()
+        self.channels_info = self.slack_tools.get_channels_information()
+                
+        # Define input schemas
+        class MessageInput(BaseModel):
+            message: str = Field(..., description="The text message to send")
+            users: List[str] = Field(default_factory=list, description="List of user IDs to send the message to")
+            channels: Optional[List[str]] = Field(default_factory=list, description="List of channel IDs to send the message to")
+
+        class AnnouncementInput(BaseModel):
+            type: str = Field(..., description="Type of announcement (feature/company/milestone/event)")
+            title: str = Field(..., description="Title of the announcement")
+            description: str = Field(..., description="Main content of the announcement")
+            users: List[str] = Field(default_factory=list, description="List of user IDs")
+            channels: Optional[List[str]] = Field(default_factory=list, description="List of channel IDs")
+
+        self.tools = [
+            StructuredTool.from_function(
+                func=self._preview_message,  # Using preview instead of direct send
+                name="send_simple_message",
+                description="Send a simple text message to Slack users or channels",
+                args_schema=MessageInput
+            ),
+            StructuredTool.from_function(
+                func=self._preview_announcement,  # Using preview instead of direct send
+                name="send_announcement",
+                description="Send a formatted announcement to Slack users or channels",
+                args_schema=AnnouncementInput
+            )
+        ]
+        
+        self.agent = initialize_agent(
+            tools=self.tools,
+            llm=self.llm,
+            agent=AgentType.STRUCTURED_CHAT_ZERO_SHOT_REACT_DESCRIPTION,
+            memory=self.memory,
+            verbose=True
+        )
+        
+        self.system_message = SystemMessage(content=f"""
+        You are a Slack messaging assistant with access to the following workspace information:
+        Users: {self.users_info}
+        Channels: {self.channels_info}
+        
+        When sending messages, use the tools with these parameters:
+        1. send_simple_message:
+           - message: str (required) - The text message to send
+           - users: list[str] (required) - List of user IDs from the workspace info
+           - channels: list[str] (optional) - List of channel IDs from the workspace info
+
+        2. send_announcement:
+           - type: str (required) - One of: feature, company, milestone, event
+           - title: str (required) - Title of the announcement
+           - description: str (required) - Main content
+           - users: list[str] (required) - List of user IDs from the workspace info
+           - channels: list[str] (optional) - List of channel IDs from the workspace info
+
+        Always look up and use the correct user/channel IDs from the workspace information above.
+        """)
+        
+        # Store previewed messages
+        self.previewed_messages = []
+
+    def _preview_message(self, message: str, users: List[str] = None, channels: List[str] = None) -> str:
+        """Store message preview instead of sending"""
+        preview = {
+            'type': 'simple_message',
+            'content': message,
+            'recipients': {
+                'users': users or [],
+                'channels': channels or []
+            }
+        }
+        self.previewed_messages.append(preview)
+        return "Message preview stored"
+
+    def _preview_announcement(self, type: str, title: str, description: str, 
+                            users: List[str] = None, channels: List[str] = None) -> str:
+        """Store announcement preview instead of sending"""
+        preview = {
+            'type': 'announcement',
+            'content': {
+                'type': type,
+                'title': title,
+                'description': description
+            },
+            'recipients': {
+                'users': users or [],
+                'channels': channels or []
+            }
+        }
+        self.previewed_messages.append(preview)
+        return "Announcement preview stored"
+
+    def _edit_message(self, msg: dict) -> dict:
+        """Interactive editing for a message"""
+        while True:
+            print("\nCurrent message details:")
+            print("=" * 50)
+            print("Type:", msg['type'])
+            if msg['type'] == 'simple_message':
+                print("Content:", msg['content'])
+            else:
+                print("Title:", msg['content']['title'])
+                print("Description:", msg['content']['description'])
+                print("Type:", msg['content']['type'])
+            print("\nRecipients:")
+            print("Users:", msg['recipients']['users'])
+            print("Channels:", msg['recipients']['channels'])
+            
+            choice = input("\nEdit (1-Content, 2-Recipients, 3-Accept, 4-Skip): ")
+            
+            if choice == '1':
+                if msg['type'] == 'simple_message':
+                    msg['content'] = input("Enter new message content: ")
+                else:
+                    msg['content']['type'] = input("Enter announcement type (feature/company/milestone/event): ")
+                    msg['content']['title'] = input("Enter new title: ")
+                    msg['content']['description'] = input("Enter new description: ")
+            
+            elif choice == '2':
+                print("\nCurrent users:", msg['recipients']['users'])
+                new_users = input("Enter new user IDs (comma-separated, or press enter to keep current): ")
+                if new_users.strip():
+                    msg['recipients']['users'] = [u.strip() for u in new_users.split(',')]
+                
+                print("Current channels:", msg['recipients']['channels'])
+                new_channels = input("Enter new channel IDs (comma-separated, or press enter to keep current): ")
+                if new_channels.strip():
+                    msg['recipients']['channels'] = [c.strip() for c in new_channels.split(',')]
+            
+            elif choice == '3':
+                return msg
+            
+            elif choice == '4':
+                return None
+            
+            else:
+                print("Invalid choice, please try again")
+
+    def process_request(self, user_query: str) -> str:
+        """Process user requests with preview and edit capability"""
+        try:
+            # Clear previous previews
+            self.previewed_messages = []
+            
+            # Generate preview
+            messages = [
+                {"role": "system", "content": self.system_message},
+                {"role": "user", "content": user_query}
+            ]
+            self.agent.run(messages)
+            
+            # Show preview and allow editing
+            final_messages = []
+            print("\nPreviewing messages:")
+            
+            for idx, msg in enumerate(self.previewed_messages):
+                print(f"\nMessage {idx + 1}:")
+                edited_msg = self._edit_message(msg)
+                if edited_msg:
+                    final_messages.append(edited_msg)
+            
+            if not final_messages:
+                return "No messages were approved for sending"
+            
+            # Send approved messages
+            results = []
+            for msg in final_messages:
+                if msg['type'] == 'simple_message':
+                    result = self.slack_tools.send_message(
+                        message=msg['content'],
+                        users=msg['recipients']['users'],
+                        channels=msg['recipients']['channels']
+                    )
+                else:
+                    result = self.slack_tools.send_announcement(
+                        type=msg['content']['type'],
+                        title=msg['content']['title'],
+                        description=msg['content']['description'],
+                        users=msg['recipients']['users'],
+                        channels=msg['recipients']['channels']
+                    )
+                results.append(result)
+            
+            return "\n".join(results)
+            
+        except Exception as e:
+            return f"Error processing request: {str(e)}"
+'''

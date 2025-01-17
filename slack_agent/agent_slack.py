@@ -143,7 +143,7 @@ class SlackTools:
             return f"Failed to create or send announcement: {str(e)}"
 
 
-class SlackAgent:
+class SlackAgentTool:
     def __init__(self, slack_token: str, openai_api_key: str):
         self.slack_tools = SlackTools(slack_token)
         
@@ -236,4 +236,166 @@ class SlackAgent:
         except Exception as e:
             return f"Error processing request: {str(e)}"
         
+
+
+class SlackAgent:
+    def __init__(self, slack_token: str, openai_api_key: str):
+        self.slack_tools = SlackTools(slack_token)
         
+        self.llm = ChatOpenAI(
+            temperature=0,
+            openai_api_key=openai_api_key,
+            model="gpt-4"
+        )
+        
+        self.memory = ConversationBufferMemory(
+            memory_key="chat_history",
+            return_messages=True
+        )
+        
+        # Initialize workspace info
+        self.users_info = self.slack_tools.get_users_information()
+        self.channels_info = self.slack_tools.get_channels_information()
+                
+        # Define input schemas
+        class MessageInput(BaseModel):
+            message: str = Field(..., description="The text message to send")
+            users: List[str] = Field(default_factory=list, description="List of user IDs to send the message to")
+            channels: Optional[List[str]] = Field(default_factory=list, description="List of channel IDs to send the message to")
+
+        class AnnouncementInput(BaseModel):
+            type: str = Field(..., description="Type of announcement (feature/company/milestone/event)")
+            title: str = Field(..., description="Title of the announcement")
+            description: str = Field(..., description="Main content of the announcement")
+            users: List[str] = Field(default_factory=list, description="List of user IDs")
+            channels: Optional[List[str]] = Field(default_factory=list, description="List of channel IDs")
+
+        self.tools = [
+            StructuredTool.from_function(
+                func=self._preview_message,
+                name="send_simple_message",
+                description="Send a simple text message to Slack users or channels",
+                args_schema=MessageInput
+            ),
+            StructuredTool.from_function(
+                func=self._preview_announcement,
+                name="send_announcement",
+                description="Send a formatted announcement to Slack users or channels",
+                args_schema=AnnouncementInput
+            )
+        ]
+        
+        self.agent = initialize_agent(
+            tools=self.tools,
+            llm=self.llm,
+            agent=AgentType.STRUCTURED_CHAT_ZERO_SHOT_REACT_DESCRIPTION,
+            memory=self.memory,
+            verbose=True
+        )
+        
+        self.system_message = SystemMessage(content=f"""
+        You are a Slack messaging assistant with access to the following workspace information:
+        Users: {self.users_info}
+        Channels: {self.channels_info}
+        
+        When sending messages, use the tools with these parameters:
+        1. send_simple_message:
+           - message: str (required) - The text message to send
+           - users: list[str] (required) - List of user IDs from the workspace info
+           - channels: list[str] (optional) - List of channel IDs from the workspace info
+
+        2. send_announcement:
+           - type: str (required) - One of: feature, company, milestone, event
+           - title: str (required) - Title of the announcement
+           - description: str (required) - Main content
+           - users: list[str] (required) - List of user IDs from the workspace info
+           - channels: list[str] (optional) - List of channel IDs from the workspace info
+
+        Always look up and use the correct user/channel IDs from the workspace information above.
+        """)
+        
+        # Store previewed messages
+        self.previewed_messages = []
+
+    def _preview_message(self, message: str, users: List[str] = None, channels: List[str] = None) -> str:
+        """Store message preview instead of sending"""
+        preview = {
+            'type': 'simple_message',
+            'content': message,
+            'recipients': {
+                'users': users or [],
+                'channels': channels or []
+            }
+        }
+        self.previewed_messages.append(preview)
+        return "Message preview stored"
+
+    def _preview_announcement(self, type: str, title: str, description: str, 
+                            users: List[str] = None, channels: List[str] = None) -> str:
+        """Store announcement preview instead of sending"""
+        preview = {
+            'type': 'announcement',
+            'content': {
+                'type': type,
+                'title': title,
+                'description': description
+            },
+            'recipients': {
+                'users': users or [],
+                'channels': channels or []
+            }
+        }
+        self.previewed_messages.append(preview)
+        return "Announcement preview stored"
+
+    def generate_preview(self, user_query: str) -> List[dict]:
+        """Generate message previews from user query"""
+        try:
+            # Clear previous previews
+            self.previewed_messages = []
+            
+            # Generate preview
+            messages = [
+                {"role": "system", "content": self.system_message},
+                {"role": "user", "content": user_query}
+            ]
+            self.agent.run(messages)
+            
+            # Return previews
+            return self.previewed_messages
+            
+        except Exception as e:
+            raise Exception(f"Error generating preview: {str(e)}")
+
+    def send_messages(self, messages: List[dict]) -> List[str]:
+        """Send a list of edited messages"""
+        try:
+            results = []
+            for msg in messages:
+                if msg['type'] == 'simple_message':
+                    result = self.slack_tools.send_message(
+                        message=msg['content'],
+                        users=msg['recipients']['users'],
+                        channels=msg['recipients']['channels']
+                    )
+                else:
+                    result = self.slack_tools.send_announcement(
+                        type=msg['content']['type'],
+                        title=msg['content']['title'],
+                        description=msg['content']['description'],
+                        users=msg['recipients']['users'],
+                        channels=msg['recipients']['channels']
+                    )
+                results.append(result)
+            
+            return results
+            
+        except Exception as e:
+            raise Exception(f"Error sending messages: {str(e)}")
+
+    def get_workspace_info(self) -> dict:
+        """Get workspace information for the UI"""
+        return {
+            'users': self.users_info,
+            'channels': self.channels_info
+        }

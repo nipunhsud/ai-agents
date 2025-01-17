@@ -35,6 +35,7 @@ urlpatterns = [
     path('test_help_desk_agent_view/', test_help_desk_agent_view, name='test_help_desk_agent_view'),
     path('help_desk/', help_desk, name='help_desk'),
     path('help_desk_receive/', help_desk_receive, name='help_desk_receive'),
+    path("slack_assistant/",views.SlackAssistantView.as_view(), name='slack_assistant'),
     
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 

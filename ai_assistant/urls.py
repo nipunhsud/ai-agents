@@ -31,7 +31,7 @@ urlpatterns = [
     path("assistant/",views.AssistantView.as_view(), name='assistant'),
     path("email_assistant/",views.EmailAssistantView.as_view(), name='email_assistant'),
     path('analyst/', views.quant_analyst_page, name='quant_analyst_page'),
-    path("stock_assistant/",views.StockAssistantView.as_view(), name='stock_assistant'),
+    path("research/stocks/",views.StockAssistantView.as_view(), name='stock_assistant'),
     path("code_reviewer/",code_reviewer_view, name='code_reviewer'),
     #path("github_webhook/",github_webhook, name='github_webhook'),
     path('csrf_cookie', GetCSRFToken.as_view()),

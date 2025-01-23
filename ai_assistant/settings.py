@@ -53,7 +53,7 @@ STATIC_URL = '/static/'
 ROOT_URLCONF = 'ai_assistant.urls'
 DEBUG = False
 
-ALLOWED_HOSTS = ['ai-agents-nh6y.onrender.com', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['ai-agents-nh6y.onrender.com', 'localhost', '127.0.0.1', 'www.purnam.ai', 'www.purnam.ai/']
 
 
 TEMPLATES = [

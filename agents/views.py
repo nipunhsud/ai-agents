@@ -13,6 +13,7 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.csrf import csrf_protect
 from django.utils.decorators import method_decorator
+from django.middleware.csrf import get_token
 
 from .agent import Agent
 from .models import Message
@@ -432,7 +433,9 @@ def fetch_emails(request):
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'Method not allowed'}, status=405)
-        
+
+@method_decorator(firebase_auth_required, name='dispatch')
+@method_decorator(csrf_protect, name='dispatch')        
 class StockAssistantView(View):
     def post(self, request):
         user_input = request.POST.get('input', '')
@@ -442,8 +445,6 @@ class StockAssistantView(View):
 
         try:
             result,json_data,price_history = stock_generator(user_input)
-        
-             # Return both the JSON data and markdown result with appropriate content type
             response = JsonResponse({
                 'response': json_data, 
                 'markdown': result,
@@ -454,6 +455,15 @@ class StockAssistantView(View):
             return response
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
+            
+@method_decorator(ensure_csrf_cookie, name='dispatch')
+class GetCSRFToken(View):
+    def get(self, request):
+        token = get_token(request)
+        response = JsonResponse({'csrfToken': token})
+        print(f"Set-Cookie header sent with CSRF token: {token}")
+        return response
+
 
 def quant_analyst_page(request):
     logger.debug(f"User {request.user} accessing react page")

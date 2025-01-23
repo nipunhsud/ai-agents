@@ -1,6 +1,7 @@
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
+    'corsheaders',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
@@ -49,22 +50,17 @@ STATIC_ROOT = "app-root/repo/wsgi/static"
 STATIC_URL = '/static/'
 
 ROOT_URLCONF = 'ai_assistant.urls'
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = [
-    'localhost',
-    '127.0.0.1',
-    '.ngrok.io',  # Allow all ngrok subdomains
-    'ai-agents-nh6y.onrender.com',
-    'www.purnam.ai'
-]
+ALLOWED_HOSTS = ['ai-agents-nh6y.onrender.com', 'localhost', '127.0.0.1']
+
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [
             os.path.join(BASE_DIR, 'templates'),
-            os.path.join(BASE_DIR, 'agents', 'templates'),
+            os.path.join(BASE_DIR, 'chat', 'templates'),
         ],
         'APP_DIRS': True,
         'OPTIONS': {
@@ -84,6 +80,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Add these if missing
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -103,19 +100,43 @@ DATABASES = {
      )
 }
 
-LOGIN_URL = '/admin/'  # Since we're using admin login
+LOGIN_URL = '/admin/login/'  # Since we're using admin login
 
 CSRF_TRUSTED_ORIGINS = [
-    'https://*.ngrok.io',
-    'http://*.ngrok.io',
-    'https://ai-agents-nh6y.onrender.com',
-    'https://www.purnam.ai'
+    'https://ai-agents-nh6y.onrender.com', 
+    'https://www.purnam.ai/',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
 ]
 
 CORS_ALLOWED_ORIGINS = [
     'https://ai-agents-nh6y.onrender.com',
+    'https://*.onrender.com',
+    'https://www.purnam.ai',
     'http://localhost:3000',
-    'http://localhost:8000',
-    'https://www.purnam.ai'
+    'http://127.0.0.1:3000',
 ]
+
 CORS_ALLOW_CREDENTIALS = True
+
+
+CSRF_COOKIE_NAME = 'csrftoken'
+CSRF_COOKIE_HTTPONLY = False  # Must be False to allow JavaScript to read the token
+SESSION_COOKIE_SAMESITE = 'None'
+CSRF_COOKIE_SAMESITE = 'None'
+
+CSRF_USE_SESSIONS = False
+CSRF_COOKIE_DOMAIN = None
+CORS_ALLOW_CREDENTIALS = True
+CSRF_COOKIE_SECURE = True 
+SESSION_COOKIE_SECURE = True    
+
+
+FIREBASE_CREDENTIALS = os.getenv('FIREBASE_CREDENTIALS')
+if FIREBASE_CREDENTIALS:
+    import json
+    import tempfile
+    cred_temp = tempfile.NamedTemporaryFile(delete=False)
+    cred_temp.write(FIREBASE_CREDENTIALS.encode())
+    cred_temp.close()
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = cred_temp.name

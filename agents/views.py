@@ -25,6 +25,7 @@ from .technical_writer import TechnicalWriter, DocumentType, OutputFormat
 from .assistant import Assistant
 #from .email_assistant import email_generator
 from .stock_assistant import stock_generator
+from .rental_assistant import rental_generator
 from .slack import slack_generator
 from .decorators import firebase_auth_required
 
@@ -150,6 +151,17 @@ def react_page(request):
     except Exception as e:
         logger.error(f"Error rendering react page: {str(e)}")
         return JsonResponse({'error': str(e)}, status=500)
+    
+def real_estate_page(request):
+    logger.debug(f"User {request.user} accessing react page")
+    try:
+        # Access Firebase user info if needed
+        # firebase_user = request.firebase_user
+        return render(request, 'chat/real_estate.html')
+    except Exception as e:
+        logger.error(f"Error rendering react page: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+
 
 @login_required
 def upload_document(request):
@@ -455,6 +467,27 @@ class StockAssistantView(View):
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
 
+class RentalAssistantView(View):
+    def post(self, request):
+        user_input = request.POST.get('input', '')
+
+        if not user_input:
+            return JsonResponse({'error': 'Input cannot be empty.'}, status=400)
+
+        try:
+            result,json_data = rental_generator(user_input)
+        
+             # Return both the JSON data and markdown result with appropriate content type
+            response = JsonResponse({
+                'response': json_data, 
+                'markdown': result,
+                'content_type': 'text/markdown'
+            })
+            response['Content-Type'] = 'application/json'
+            return response
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
 def quant_analyst_page(request):
     logger.debug(f"User {request.user} accessing react page")
     try:
@@ -491,3 +524,4 @@ def email_assistant_view(request):
             return JsonResponse({'error': str(e)}, status=500)
 
     return JsonResponse({'error': 'Method not allowed'}, status=405)
+    

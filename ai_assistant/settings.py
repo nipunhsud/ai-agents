@@ -10,6 +10,7 @@ INSTALLED_APPS = [
     'slack_agent',
     'code_reviewer_agent',
     'help_desk_agent',
+    "django_extensions",
 ]
 
 # Add at the bottom of the file

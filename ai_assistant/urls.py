@@ -19,6 +19,7 @@ urlpatterns = [
     path('login/', auth_views.LoginView.as_view(), name='login'),
     path('agent/', views.AgentView.as_view(), name='agent'),
     path('react/', views.react_page, name='react_page'), 
+    path('real_estate/', views.real_estate_page, name='real_estate_page'), 
     path('query/', views.query_page, name='query_page'), 
     path('test/', test, name='test'), 
     path("gift/",views.gift_prediction_view, name='gift'),
@@ -44,7 +45,7 @@ urlpatterns = [
     path('help_desk/', help_desk, name='help_desk'),
     path('help_desk_receive/', help_desk_receive, name='help_desk_receive'),
     path("slack_assistant/",views.SlackAssistantView.as_view(), name='slack_assistant'),
-    
+    path("rental_assistant/",views.RentalAssistantView.as_view(), name='rental_assistant'),
     
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 

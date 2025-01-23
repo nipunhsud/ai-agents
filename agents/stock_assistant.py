@@ -444,7 +444,7 @@ def stock_generator(content):
         markdown_data = result['messages'][-1].content.split("\n\n```json\n")[0]
         print(json_data)
         print(markdown_data)
-        price_history = get_stock_ma(content, 30)
+        price_history = get_stock_quote(content)
     except Exception as e:
         print(f"Could not serialize graph: {e}")
     return markdown_data, json_data, price_history

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from agents.views import GetCSRFToken  
@@ -27,11 +27,12 @@ urlpatterns = [
     path("slack-success/",slack_success_view, name='slack-success'),
     path('writer/', views.technical_writer_view, name='technical_writer'),
     path("add-slack-token/",add_slack_token, name='add_slack_token'),
-    path("add-slack-token/",add_slack_token, name='add_slack_token'),
     path("assistant/",views.AssistantView.as_view(), name='assistant'),
     path("email_assistant/",views.EmailAssistantView.as_view(), name='email_assistant'),
     path('analyst/', views.quant_analyst_page, name='quant_analyst_page'),
-    path("research/stocks/",views.StockAssistantView.as_view(), name='stock_assistant'),
+    path("research/", include([
+        path("stocks/", views.StockAssistantView.as_view(), name='stock_assistant'),
+    ])),
     path("code_reviewer/",code_reviewer_view, name='code_reviewer'),
     #path("github_webhook/",github_webhook, name='github_webhook'),
     path('csrf_cookie', GetCSRFToken.as_view()),

@@ -115,7 +115,6 @@ CORS_ALLOWED_ORIGINS = [
     'https://ai-agents-nh6y.onrender.com',
     'https://*.onrender.com',
     'https://www.purnam.ai',
-    'https://www.purnam.ai/',
     'http://localhost:3000',
     'http://127.0.0.1:3000',
 ]

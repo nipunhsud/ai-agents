@@ -461,7 +461,6 @@ class GetCSRFToken(View):
     def get(self, request):
         token = get_token(request)
         response = JsonResponse({'csrfToken': token})
-        print(f"Set-Cookie header sent with CSRF token: {token}")
         return response
 
 

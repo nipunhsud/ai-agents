@@ -8,28 +8,23 @@ from django.contrib.auth import login
 User = get_user_model()
 
 def get_user_from_firebase(request):
-    # Get the ID token from the Authorization header
     auth_header = request.headers.get('Authorization')
     if not auth_header or not auth_header.startswith('Bearer '):
         return AnonymousUser()
 
     token = auth_header.split('Bearer ')[1]
     try:
-        # Verify the Firebase token
         decoded_token = auth.verify_id_token(token)
         uid = decoded_token['uid']
         email = decoded_token.get('email', '')
         
-        # Get or create user
         user, created = User.objects.get_or_create(
             username=uid,
             defaults={
                 'email': email,
-                # Add other fields as needed
             }
         )
         
-        # Optionally login the user
         login(request, user)
         return user
     except Exception as e:
@@ -39,6 +34,11 @@ def get_user_from_firebase(request):
 class FirebaseAuthMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
+
+        try:
+            firebase_admin.get_app()
+        except ValueError:
+            firebase_admin.initialize_app()
 
     def __call__(self, request):
         request.user = SimpleLazyObject(lambda: get_user_from_firebase(request))

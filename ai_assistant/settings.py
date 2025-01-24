@@ -17,6 +17,7 @@ INSTALLED_APPS = [
 from dotenv import load_dotenv
 import os
 import dj_database_url
+from firebase_admin import credentials, initialize_app
 
 load_dotenv()
 
@@ -134,11 +135,14 @@ CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SECURE = True    
 
 
-FIREBASE_CREDENTIALS = os.getenv('FIREBASE_CREDENTIALS')
-if FIREBASE_CREDENTIALS:
-    import json
-    import tempfile
-    cred_temp = tempfile.NamedTemporaryFile(delete=False)
-    cred_temp.write(FIREBASE_CREDENTIALS.encode())
-    cred_temp.close()
-    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = cred_temp.name
+# FIREBASE_CREDENTIALS = os.getenv('FIREBASE_CREDENTIALS')
+# if FIREBASE_CREDENTIALS:
+#     import json
+#     import tempfile
+#     cred_temp = tempfile.NamedTemporaryFile(delete=False)
+#     cred_temp.write(FIREBASE_CREDENTIALS.encode())
+#     cred_temp.close()
+#     os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = cred_temp.name
+
+cred = credentials.Certificate('firebase-credentials.json')
+initialize_app(cred)

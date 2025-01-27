@@ -46,7 +46,8 @@ urlpatterns = [
     path('help_desk_receive/', help_desk_receive, name='help_desk_receive'),
     path("slack_assistant/",views.SlackAssistantView.as_view(), name='slack_assistant'),
     path("rental_assistant/",views.RentalAssistantView.as_view(), name='rental_assistant'),
-    
+    path('create-checkout-session/', views.StripeCheckoutView.as_view(), name='create-checkout'),
+    path('stripe-webhook/', views.StripeWebhookView.as_view(), name='stripe-webhook'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 

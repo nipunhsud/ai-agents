@@ -14,6 +14,10 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.csrf import csrf_protect
 from django.utils.decorators import method_decorator
 from django.middleware.csrf import get_token
+from firebase_admin import firestore
+from datetime import datetime, timezone
+from firebase_admin import auth
+import stripe
 
 from .agent import Agent
 from .models import Message
@@ -32,6 +36,7 @@ from .decorators import firebase_auth_required
 
 logger = logging.getLogger(__name__)
 
+stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
 
 chat = ChatOpenAI(
     temperature=0.7,  # Controls randomness (0.0 = deterministic, 1.0 = creative)
@@ -451,20 +456,55 @@ def fetch_emails(request):
 class StockAssistantView(View):
     def post(self, request):
         user_input = request.POST.get('input', '')
-
+        user_id = request.firebase_user['uid']
+        
         if not user_input:
             return JsonResponse({'error': 'Input cannot be empty.'}, status=400)
-
+            
         try:
-            result,json_data,price_history = stock_generator(user_input)
+            # Check request count
+            db = firestore.client()
+            today_start = datetime.now(timezone.utc).replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+            
+            # Get today's requests for this user
+            requests = db.collection('stock_analysis')\
+                .where('user_id', '==', user_id)\
+                .where('timestamp', '>=', today_start)\
+                .get()
+                
+            if len(requests) >= 10:
+                return JsonResponse({
+                    'error': 'Daily limit reached',
+                    'message': 'You have reached your daily limit of 10 requests. Please subscribe for unlimited access.',
+                    'subscribe': True
+                }, status=402)
+
+            
+            
+            # Process request
+            result, json_data, price_history = stock_generator(user_input)
+            
+            # Save to Firestore
+            db.collection('stock_analysis').add({
+                'user_id': user_id,
+                'ticker': user_input,
+                'analysis': json_data,
+                'markdown': result,
+                'timestamp': datetime.now(timezone.utc),
+            })
+            
             response = JsonResponse({
                 'response': json_data, 
                 'markdown': result,
                 'price_history': price_history,
-                'content_type': 'text/markdown'
+                'content_type': 'text/markdown',
+                'requests_remaining': 10 - (len(requests) + 1)
             })
             response['Content-Type'] = 'application/json'
             return response
+            
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
             
@@ -533,4 +573,66 @@ def email_assistant_view(request):
             return JsonResponse({'error': str(e)}, status=500)
 
     return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+@method_decorator(firebase_auth_required, name='dispatch')
+class StripeCheckoutView(View):
+    def post(self, request):
+        try:
+            user_id = request.firebase_user['uid']
+            db = firestore.client()
+            
+            # Create Stripe checkout session
+            checkout_session = stripe.checkout.Session.create(
+                payment_method_types=['card'],
+                line_items=[{
+                    'price': os.getenv('STRIPE_PRICE_ID'),  # Your subscription price ID
+                    'quantity': 1,
+                }],
+                mode='subscription',
+                success_url=request.build_absolute_uri('/success?session_id={CHECKOUT_SESSION_ID}'),
+                cancel_url=request.build_absolute_uri('/cancel'),
+                client_reference_id=user_id,
+            )
+            
+            # Store checkout session in Firestore
+            db.collection('stripe_customers').document(user_id).set({
+                'checkout_session_id': checkout_session.id,
+                'status': 'pending'
+            }, merge=True)
+            
+            return JsonResponse({
+                'sessionId': checkout_session.id,
+                'publicKey': os.getenv('STRIPE_PUBLISHABLE_KEY')
+            })
+            
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+@method_decorator(firebase_auth_required, name='dispatch')
+class StripeWebhookView(View):
+    def post(self, request):
+        try:
+            event = stripe.Event.construct_from(
+                json.loads(request.body), stripe.api_key
+            )
+            
+            if event.type == 'checkout.session.completed':
+                session = event.data.object
+                user_id = session.client_reference_id
+                
+                # Update user's subscription status
+                db = firestore.client()
+                db.collection('stripe_customers').document(user_id).update({
+                    'status': 'active',
+                    'subscription_id': session.subscription,
+                    'updated_at': datetime.now(timezone.utc)
+                })
+                
+                # Update custom claims
+                auth.set_custom_user_claims(user_id, {'subscribed': True})
+                
+            return JsonResponse({'status': 'success'})
+            
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
     

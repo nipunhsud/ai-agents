@@ -240,7 +240,7 @@
             responseDiv.innerHTML = '<div class="analysis-section">Analyzing stock data...</div>';
 
             try {
-                const response = await fetch('/stock_assistant/', {
+                const response = await fetch('/research/stocks/', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
@@ -260,6 +260,10 @@
                                 <button onclick="printMarkdownContent()" class="print-button">Print Analysis</button>
                             </div>
                         </div>`;                 
+                }
+
+                if (data.subscribe) {
+                    await handleSubscription();
                 }
             } catch (error) {
                 responseDiv.innerHTML = `<div class="analysis-section error">
@@ -296,6 +300,31 @@
             document.getElementById('reactForm').onsubmit = async function(event) {
                 // ... existing form submit code ...
             };
+        }
+
+        async function handleSubscription() {
+            const response = await fetch('/create-checkout-session/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                    'Authorization': `Bearer ${firebaseToken}`
+                }
+            });
+            
+            const data = await response.json();
+            
+            // Load Stripe.js
+            const stripe = Stripe(data.publicKey);
+            
+            // Redirect to Stripe Checkout
+            const { error } = await stripe.redirectToCheckout({
+                sessionId: data.sessionId
+            });
+            
+            if (error) {
+                console.error('Error:', error);
+            }
         }
     </script>
 </body>

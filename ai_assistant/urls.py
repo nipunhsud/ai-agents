@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from agents.views import GetCSRFToken  
+from agents.views import GetCSRFToken, RAGAssistantView, StripeWebhookView, StripeCheckoutView  
 from agents import views
 from slack_agent.views import test,add_slack_token,handle_message,send_messages,slack_success_view
 from code_reviewer_agent.views import code_reviewer_view,github_webhook,github_keys_form,submit_keys,success_view
@@ -32,7 +32,8 @@ urlpatterns = [
     path("email_assistant/",views.EmailAssistantView.as_view(), name='email_assistant'),
     path('analyst/', views.quant_analyst_page, name='quant_analyst_page'),
     path("research/", include([
-        path("stocks/", views.StockAssistantView.as_view(), name='stock_assistant'),
+        path("stocks/<str:stock_name>", views.StockAssistantView.as_view(), name='stock_assistant'),
+        path("stocks/", views.StockAssistantView.as_view(), name='stock_assistant_default'),
     ])),
     path("code_reviewer/",code_reviewer_view, name='code_reviewer'),
     #path("github_webhook/",github_webhook, name='github_webhook'),
@@ -46,8 +47,11 @@ urlpatterns = [
     path('help_desk_receive/', help_desk_receive, name='help_desk_receive'),
     path("slack_assistant/",views.SlackAssistantView.as_view(), name='slack_assistant'),
     path("rental_assistant/",views.RentalAssistantView.as_view(), name='rental_assistant'),
-    path('create-checkout-session/', views.StripeCheckoutView.as_view(), name='create-checkout'),
-    path('stripe-webhook/', views.StripeWebhookView.as_view(), name='stripe-webhook'),
+     path("stripe/", include([
+        path("webhook", views.StripeWebhookView.as_view(), name='stripe-webhook'),
+    ])),
+    path('stripe/create-checkout-session/', StripeCheckoutView.as_view(), name='stripe-checkout'),
+    path('rag/', RAGAssistantView.as_view(), name='rag_assistant'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 

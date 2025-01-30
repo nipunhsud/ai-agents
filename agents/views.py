@@ -477,13 +477,19 @@ class StockAssistantView(View):
                 .where('user_id', '==', user_id)\
                 .where('timestamp', '>=', today_start)\
                 .get()
-                
-            if len(requests) >= 4:
-                return JsonResponse({
-                    'error': 'Daily limit reached',
-                    'message': 'You have reached your daily limit of 10 requests. Please subscribe for unlimited access.',
-                    'subscribe': True
-                }, status=402)
+            
+            # Check user subscription status
+            user_email = request.firebase_user['email']
+            user_subscription_doc = db.collection('stripe_customers').document(user_email).get()
+            
+            # Only enforce limit for non-subscribed users
+            if not user_subscription_doc.exists or user_subscription_doc.get('status') != 'active':
+                if len(requests) >= 10:
+                    return JsonResponse({
+                        'error': 'Daily limit reached',
+                        'message': 'You have reached your daily limit of 10 requests. Please subscribe for unlimited access.',
+                        'subscribe': True
+                    }, status=402)
 
             # Process request
             result, json_data, price_history = stock_generator(user_input)

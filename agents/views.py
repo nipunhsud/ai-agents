@@ -478,7 +478,7 @@ class StockAssistantView(View):
                 .where('timestamp', '>=', today_start)\
                 .get()
                 
-            if len(requests) >= 4:
+            if len(requests) >= 15:
                 return JsonResponse({
                     'error': 'Daily limit reached',
                     'message': 'You have reached your daily limit of 10 requests. Please subscribe for unlimited access.',

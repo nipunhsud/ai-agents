@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import requests
 
 from django.views import View
 from django.conf import settings
@@ -10,7 +11,7 @@ from langchain.schema import HumanMessage
 from langchain.chat_models import ChatOpenAI
 from django.core.files.storage import default_storage
 from django.contrib.auth.decorators import login_required
-from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
 from django.views.decorators.csrf import csrf_protect
 from django.utils.decorators import method_decorator
 from django.middleware.csrf import get_token
@@ -454,9 +455,12 @@ def fetch_emails(request):
 @method_decorator(firebase_auth_required, name='dispatch')
 @method_decorator(csrf_protect, name='dispatch')        
 class StockAssistantView(View):
-    def post(self, request):
-        user_input = request.POST.get('input', '')
+    def post(self, request, stock_name=None):
+        # Use stock_name from URL if provided, otherwise get from POST data
+        user_input = stock_name or request.POST.get('input', '')
         user_id = request.firebase_user['uid']
+        
+        logger.info(f"Processing stock analysis for ticker: {user_input}")
         
         if not user_input:
             return JsonResponse({'error': 'Input cannot be empty.'}, status=400)
@@ -474,15 +478,13 @@ class StockAssistantView(View):
                 .where('timestamp', '>=', today_start)\
                 .get()
                 
-            if len(requests) >= 10:
+            if len(requests) >= 4:
                 return JsonResponse({
                     'error': 'Daily limit reached',
                     'message': 'You have reached your daily limit of 10 requests. Please subscribe for unlimited access.',
                     'subscribe': True
                 }, status=402)
 
-            
-            
             # Process request
             result, json_data, price_history = stock_generator(user_input)
             
@@ -506,8 +508,9 @@ class StockAssistantView(View):
             return response
             
         except Exception as e:
+            logger.error(f"Error processing stock analysis for {user_input}: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
-            
+
 @method_decorator(ensure_csrf_cookie, name='dispatch')
 class GetCSRFToken(View):
     def get(self, request):
@@ -584,14 +587,27 @@ class StripeCheckoutView(View):
             # Create Stripe checkout session
             checkout_session = stripe.checkout.Session.create(
                 payment_method_types=['card'],
+                customer_email=request.firebase_user.get('email'),
+                billing_address_collection='required',
                 line_items=[{
-                    'price': os.getenv('STRIPE_PRICE_ID'),  # Your subscription price ID
+                    'price': os.getenv('STRIPE_PRICE_ID'),
                     'quantity': 1,
                 }],
                 mode='subscription',
+                allow_promotion_codes=True,
                 success_url=request.build_absolute_uri('/success?session_id={CHECKOUT_SESSION_ID}'),
                 cancel_url=request.build_absolute_uri('/cancel'),
                 client_reference_id=user_id,
+                payment_intent_data={
+                    'metadata': {
+                        'user_id': user_id
+                    }
+                },
+                subscription_data={
+                    'metadata': {
+                        'user_id': user_id
+                    }
+                }
             )
             
             # Store checkout session in Firestore
@@ -608,31 +624,104 @@ class StripeCheckoutView(View):
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
 
-@method_decorator(firebase_auth_required, name='dispatch')
+@method_decorator(csrf_exempt, name='dispatch')  # Stripe webhooks can't include CSRF
 class StripeWebhookView(View):
     def post(self, request):
         try:
-            event = stripe.Event.construct_from(
-                json.loads(request.body), stripe.api_key
-            )
+            # Log incoming webhook
+            logger.info("Received Stripe webhook")
             
-            if event.type == 'checkout.session.completed':
-                session = event.data.object
-                user_id = session.client_reference_id
-                
+            # Parse the JSON payload
+            payload = json.loads(request.body.decode('utf-8'))
+            event_type = payload['type']
+            event_data = payload['data']['object']
+            
+            logger.info(f"Processing webhook event type: {event_type}")
+            logger.debug(f"Webhook payload: {payload}")
+            print(event_data)
+            # Handle different event types
+            if event_type == 'checkout.session.completed':
                 # Update user's subscription status
                 db = firestore.client()
-                db.collection('stripe_customers').document(user_id).update({
+                auth = auth.client()
+                user_id = auth.get_user_by_email(event_data['customer_details']['email'])
+                email =  event_data['customer_details']['email']
+                subscription_data = {
+                    'email': event_data['customer_details']['email'],    
+                    'name': event_data['customer_details']['name'],
                     'status': 'active',
-                    'subscription_id': session.subscription,
-                    'updated_at': datetime.now(timezone.utc)
-                })
+                    'subscription_id': event_data.get('subscription'),
+                    'date': event_data,
+                    'user_id': user_id,
+                    'created_at': datetime.now(timezone.utc),
+                }
+                logger.info(f"Updating Firestore for user {email} with data: {subscription_data}")
+                
+                db.collection('stripe_customers').document(email).set(
+                    subscription_data, 
+                    merge=True
+                )
                 
                 # Update custom claims
-                auth.set_custom_user_claims(user_id, {'subscribed': True})
+                logger.info(f"Setting custom claims for user {user_id}")
+                # auth.set_custom_user_claims(user_id, {'subscribed': True})
                 
-            return JsonResponse({'status': 'success'})
+                logger.info("Successfully processed checkout.session.completed")
+                return JsonResponse({
+                    'status': 'success',
+                    'message': 'Subscription activated successfully'
+                })
             
+            # Handle other event types if needed
+            logger.info(f"Unhandled event type: {event_type}")
+            return JsonResponse({
+                'status': 'success',
+                'message': f'Unhandled event type: {event_type}'
+            })
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON payload: {str(e)}")
+            logger.debug(f"Raw payload: {request.body.decode('utf-8')}")
+            return JsonResponse({
+                'error': 'Invalid JSON payload',
+                'message': str(e)
+            }, status=400)
+            
+        except Exception as e:
+            logger.error(f"Stripe webhook error: {str(e)}", exc_info=True)
+            return JsonResponse({
+                'error': str(e),
+                'message': 'Internal server error'
+            }, status=500)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class RAGAssistantView(View):
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+            query = data.get('query', '')
+
+            if not query:
+                return JsonResponse({'error': 'Query cannot be empty'}, status=400)
+
+            # Call RAG API
+            response = requests.post(
+                'https://rag-agent-axt4.onrender.com/ask',
+                json={'query': query},
+                headers={
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Origin': 'https://www.purnam.ai'
+                }
+            )
+            
+            if response.status_code != 200:
+                return JsonResponse({
+                    'error': f'RAG API error: {response.text}'
+                }, status=response.status_code)
+
+            return JsonResponse(response.json())
+
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
     

@@ -109,7 +109,8 @@ CSRF_TRUSTED_ORIGINS = [
     'https://www.purnam.ai/',
     'http://localhost:3000',
     'http://127.0.0.1:3000',
-    'https://www.purnam.ai'
+    'https://www.purnam.ai',
+    'http://localhost:3001',
 ]
 
 CORS_ALLOWED_ORIGINS = [
@@ -118,10 +119,28 @@ CORS_ALLOWED_ORIGINS = [
     'https://www.purnam.ai',
     'http://localhost:3000',
     'http://127.0.0.1:3000',
+    'http://localhost:3001',
+    'https://rag-agent-axt4.onrender.com'  # Add RAG API domain
 ]
 
-CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = True  # For development only
+CORS_ALLOW_METHODS = [
+    'GET',
+    'POST',
+    'OPTIONS'
+]
 
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
 
 CSRF_COOKIE_NAME = 'csrftoken'
 CSRF_COOKIE_HTTPONLY = False  # Must be False to allow JavaScript to read the token

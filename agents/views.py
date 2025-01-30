@@ -665,10 +665,7 @@ class StripeWebhookView(View):
                     merge=True
                 )
                 
-                # Update custom claims
-                logger.info(f"Setting custom claims for user {user_id}")
-                # auth.set_custom_user_claims(user_id, {'subscribed': True})
-                
+                # Update custom claims                
                 logger.info("Successfully processed checkout.session.completed")
                 return JsonResponse({
                     'status': 'success',

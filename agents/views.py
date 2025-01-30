@@ -643,8 +643,6 @@ class StripeWebhookView(View):
             if event_type == 'checkout.session.completed':
                 # Update user's subscription status
                 db = firestore.client()
-                auth = auth.client()
-                user_id = auth.get_user_by_email(event_data['customer_details']['email'])
                 email =  event_data['customer_details']['email']
                 subscription_data = {
                     'email': event_data['customer_details']['email'],    
@@ -652,7 +650,6 @@ class StripeWebhookView(View):
                     'status': 'active',
                     'subscription_id': event_data.get('subscription'),
                     'date': event_data,
-                    'user_id': user_id,
                     'created_at': datetime.now(timezone.utc),
                 }
                 logger.info(f"Updating Firestore for user {email} with data: {subscription_data}")

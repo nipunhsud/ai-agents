@@ -52,6 +52,7 @@ urlpatterns = [
     ])),
     path('stripe/create-checkout-session/', StripeCheckoutView.as_view(), name='stripe-checkout'),
     path('rag/', RAGAssistantView.as_view(), name='rag_assistant'),
+    path('user/stock-analyses/', views.UserStockAnalysisView.as_view(), name='user_stock_analyses'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 

@@ -500,6 +500,7 @@ class StockAssistantView(View):
                 'ticker': user_input,
                 'analysis': json_data,
                 'markdown': result,
+                'user_email': user_email,   
                 'timestamp': datetime.now(timezone.utc),
             })
             
@@ -724,4 +725,46 @@ class RAGAssistantView(View):
 
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
+
+@method_decorator(firebase_auth_required, name='dispatch')
+class UserStockAnalysisView(View):
+    def get(self, request):
+        try:
+            # Get user email from firebase auth
+            user_email = request.firebase_user['email']
+            logger.info(f"Fetching stock analyses for user: {user_email}")
+            
+            # Query Firestore for all analyses by this user
+            db = firestore.client()
+            print(user_email)   
+            analyses = db.collection('stock_analysis')\
+                        .where('user_email', '==', user_email)\
+                        .order_by('timestamp', direction=firestore.Query.DESCENDING)\
+                        .stream()
+            print(analyses)
+            # Format the response data
+            analysis_list = []
+            for analysis in analyses:
+                data = analysis.to_dict()
+                analysis_list.append({
+                    'id': analysis.id,
+                    'ticker': data.get('ticker'),
+                    'analysis': data.get('analysis'),
+                    'markdown': data.get('markdown'),
+                    'timestamp': data.get('timestamp').isoformat() if data.get('timestamp') else None,
+                    'user_email': data.get('user_email')
+                })
+            
+            logger.info(f"Found {len(analysis_list)} analyses for user {user_email}")
+            return JsonResponse({
+                'success': True,
+                'analyses': analysis_list
+            })
+            
+        except Exception as e:
+            logger.error(f"Error fetching stock analyses: {str(e)}", exc_info=True)
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            }, status=500)
     

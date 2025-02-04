@@ -730,18 +730,30 @@ class RAGAssistantView(View):
 class UserStockAnalysisView(View):
     def get(self, request):
         try:
-            # Get user email from firebase auth
-            user_email = request.firebase_user['email']
-            logger.info(f"Fetching stock analyses for user: {user_email}")
+            # Get ticker from query params
+            ticker = request.GET.get('ticker')
             
-            # Query Firestore for all analyses by this user
+            # Get user email from firebase auth
+            user_email = request.firebase_user.get('email')
+            if not user_email:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'User email not found in token'
+                }, status=401)
+
+            logger.info(f"Fetching stock analyses for user: {user_email} {'for ticker: ' + ticker if ticker else ''}")
+            
+            # Query Firestore for analyses
             db = firestore.client()
-            print(user_email)   
-            analyses = db.collection('stock_analysis')\
-                        .where('user_email', '==', user_email)\
-                        .order_by('timestamp', direction=firestore.Query.DESCENDING)\
-                        .stream()
-            print(analyses)
+            query = db.collection('stock_analysis').where('user_email', '==', user_email)
+            
+            # Add ticker filter if provided
+            if ticker:
+                query = query.where('ticker', '==', ticker.upper())
+            
+            # Get results
+            analyses = query.order_by('timestamp', direction=firestore.Query.DESCENDING).stream()
+            
             # Format the response data
             analysis_list = []
             for analysis in analyses:

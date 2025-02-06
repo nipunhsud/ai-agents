@@ -54,7 +54,7 @@ STATIC_URL = '/static/'
 ROOT_URLCONF = 'ai_assistant.urls'
 DEBUG = False
 
-ALLOWED_HOSTS = ['ai-agents-nh6y.onrender.com', 'localhost', '127.0.0.1', 'www.purnam.ai', 'www.purnam.ai/']
+ALLOWED_HOSTS = ['ai-agents-nh6y.onrender.com', 'backend.purnam.ai', 'www.backend.purnam.ai', 'localhost', '127.0.0.1', 'www.purnam.ai', 'www.purnam.ai/']
 
 
 TEMPLATES = [
@@ -111,6 +111,8 @@ CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:3000',
     'https://www.purnam.ai',
     'http://localhost:3001',
+    'https://backend.purnam.ai',
+    'https://www.backend.purnam.ai',
 ]
 
 CORS_ALLOWED_ORIGINS = [
@@ -120,7 +122,9 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
     'http://localhost:3001',
-    'https://rag-agent-axt4.onrender.com'  # Add RAG API domain
+    'https://rag-agent-axt4.onrender.com',
+    'https://backend.purnam.ai',
+    'https://www.backend.purnam.ai',
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True  # For development only

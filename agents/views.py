@@ -492,21 +492,19 @@ class StockAssistantView(View):
                     }, status=402)
 
             # Process request
-            result, json_data, price_history = stock_generator(user_input)
+            _, json_data, price_history = stock_generator(user_input)
             
             # Save to Firestore
             db.collection('stock_analysis').add({
                 'user_id': user_id,
                 'ticker': user_input,
                 'analysis': json_data,
-                'markdown': result,
                 'user_email': user_email,   
                 'timestamp': datetime.now(timezone.utc),
             })
             
             response = JsonResponse({
                 'response': json_data, 
-                'markdown': result,
                 'price_history': price_history,
                 'content_type': 'text/markdown',
                 'requests_remaining': 10 - (len(requests) + 1)
@@ -766,6 +764,14 @@ class UserStockAnalysisView(View):
                     'timestamp': data.get('timestamp').isoformat() if data.get('timestamp') else None,
                     'user_email': data.get('user_email')
                 })
+            
+            # Sort the list to put BUY recommendations first
+            analysis_list.sort(
+                key=lambda x: (
+                    0 if x.get('analysis', '').upper().find('BUY') != -1 else 1,
+                    -datetime.fromisoformat(x.get('timestamp')).timestamp() if x.get('timestamp') else float('-inf')
+                )
+            )
             
             logger.info(f"Found {len(analysis_list)} analyses for user {user_email}")
             return JsonResponse({

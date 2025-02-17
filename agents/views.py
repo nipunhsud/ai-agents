@@ -856,34 +856,46 @@ class StockTickerCSVUploadView(View):
                 
                 tickers = list(tickers)  # Convert set back to list
                 db = firestore.client()
+                valid_analyses = []
                 for ticker in tickers:
-                     # Process request
-                    _, json_data, price_history = stock_generator(ticker)
-                    
-                    # Save to Firestore
-                    db.collection('stock_analysis').add({
-                        'user_id': user_id,
-                        'ticker': ticker,
-                        'analysis': json_data,
-                        'user_email': user_email,   
-                        'timestamp': datetime.now(timezone.utc),
-                    })
-                if not tickers:
+                    try:
+                        # Process request
+                        _, json_data, price_history = stock_generator(ticker)
+                        
+                        # Validate json_data
+                        if not json_data:
+                            logger.warning(f"Invalid json_data for ticker {ticker}, skipping...")
+                            continue
+                        
+                        # Save to Firestore
+                        db.collection('stock_analysis').add({
+                            'user_id': user_id,
+                            'ticker': ticker,
+                            'analysis': json_data,
+                            'user_email': user_email,   
+                            'timestamp': datetime.now(timezone.utc),
+                        })
+                        valid_analyses.append(ticker)
+                    except Exception as e:
+                        logger.error(f"Error processing ticker {ticker}: {str(e)}")
+                        continue
+
+                if not valid_analyses:
                     return JsonResponse({
                         'success': False,
-                        'error': 'No valid tickers found in CSV file'
+                        'error': 'No valid analyses could be generated from the provided tickers'
                     }, status=400)
                 
-                logger.info(f"Successfully extracted {len(tickers)} tickers from CSV: {tickers}")
+                logger.info(f"Successfully processed {len(valid_analyses)} out of {len(tickers)} tickers")
                 
                 db.collection('stock_bulk').add({
-                    'tickers': tickers,
+                    'tickers': valid_analyses,
                     'timestamp': datetime.now(timezone.utc),
                 })
                 
                 return JsonResponse({
                     'success': True,
-                    'tickers': tickers,
+                    'tickers': valid_analyses,
                     'analyses': []
                 })
                 

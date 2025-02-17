@@ -2,6 +2,8 @@ import json
 import logging
 import os
 import requests
+import csv
+import io
 
 from django.views import View
 from django.conf import settings
@@ -19,6 +21,7 @@ from firebase_admin import firestore
 from datetime import datetime, timezone
 from firebase_admin import auth
 import stripe
+from django.core.files.uploadedfile import InMemoryUploadedFile
 
 from .agent import Agent
 from .models import Message
@@ -781,6 +784,122 @@ class UserStockAnalysisView(View):
             
         except Exception as e:
             logger.error(f"Error fetching stock analyses: {str(e)}", exc_info=True)
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            }, status=500)
+
+@method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(firebase_auth_required, name='dispatch')
+class StockTickerCSVUploadView(View):
+    def post(self, request):
+        try:
+            # Check if file was uploaded
+            if 'file' not in request.FILES:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'No file uploaded'
+                }, status=400)
+            
+            csv_file: InMemoryUploadedFile = request.FILES['file']
+            
+            # Validate file type
+            if not csv_file.name.endswith('.csv'):
+                return JsonResponse({
+                    'success': False,
+                    'error': 'File must be a CSV'
+                }, status=400)
+            
+            # Read CSV file
+            tickers = set()  # Using set to avoid duplicates
+            try:
+                # Decode the file content
+                file_content = csv_file.read().decode('utf-8')
+                csv_reader = csv.DictReader(io.StringIO(file_content))
+                user_email = request.firebase_user.get('email')
+                user_id = request.firebase_user.get('uid')
+                
+                # Find the symbol column
+                headers = csv_reader.fieldnames
+                if not headers:
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'CSV file has no headers'
+                    }, status=400)
+                
+                # Create a mapping of lowercase headers to actual headers
+                header_map = {h.lower(): h for h in headers}
+                
+                # Look for symbol column in various forms
+                symbol_variants = ['symbol', 'ticker', 'stock']
+                symbol_col = next((header_map[variant] for variant in symbol_variants 
+                                if variant in header_map), None)
+                
+                if not symbol_col:
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'No Symbol/Ticker column found in CSV',
+                        'available_columns': headers
+                    }, status=400)
+                
+                logger.info(f"Found symbol column: {symbol_col}")
+                
+                # Process each row
+                for row in csv_reader:
+                    if symbol_col not in row:
+                        logger.error(f"Missing column {symbol_col} in row: {row}")
+                        continue
+                        
+                    ticker = row[symbol_col].strip().upper()
+                    if ticker and len(ticker) <= 5:  # Basic ticker validation
+                        tickers.add(ticker)
+                
+                tickers = list(tickers)  # Convert set back to list
+                db = firestore.client()
+                for ticker in tickers:
+                     # Process request
+                    _, json_data, price_history = stock_generator(ticker)
+                    
+                    # Save to Firestore
+                    db.collection('stock_analysis').add({
+                        'user_id': user_id,
+                        'ticker': ticker,
+                        'analysis': json_data,
+                        'user_email': user_email,   
+                        'timestamp': datetime.now(timezone.utc),
+                    })
+                if not tickers:
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'No valid tickers found in CSV file'
+                    }, status=400)
+                
+                logger.info(f"Successfully extracted {len(tickers)} tickers from CSV: {tickers}")
+                
+                db.collection('stock_bulk').add({
+                    'tickers': tickers,
+                    'timestamp': datetime.now(timezone.utc),
+                })
+                
+                return JsonResponse({
+                    'success': True,
+                    'tickers': tickers,
+                    'analyses': []
+                })
+                
+            except UnicodeDecodeError:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Invalid file encoding. Please ensure the file is UTF-8 encoded.'
+                }, status=400)
+            except csv.Error:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Invalid CSV format'
+                }, status=400)
+                
+        except Exception as e:
+            logger.error(f"Error processing CSV file: {str(e)}", exc_info=True)
             return JsonResponse({
                 'success': False,
                 'error': str(e)

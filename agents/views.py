@@ -4,6 +4,7 @@ import os
 import requests
 import csv
 import io
+from datetime import datetime, timezone, timedelta
 
 from django.views import View
 from django.conf import settings
@@ -18,7 +19,6 @@ from django.views.decorators.csrf import csrf_protect
 from django.utils.decorators import method_decorator
 from django.middleware.csrf import get_token
 from firebase_admin import firestore
-from datetime import datetime, timezone
 from firebase_admin import auth
 import stripe
 from django.core.files.uploadedfile import InMemoryUploadedFile
@@ -731,8 +731,13 @@ class RAGAssistantView(View):
 class UserStockAnalysisView(View):
     def get(self, request):
         try:
-            # Get ticker from query params
+            # Get pagination parameters from query params
+            page_size = int(request.GET.get('page_size', 10))
+            page = int(request.GET.get('page', 1))
             ticker = request.GET.get('ticker')
+            
+            # Calculate date 7 days ago
+            seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
             
             # Get user email from firebase auth
             user_email = request.firebase_user.get('email')
@@ -744,16 +749,18 @@ class UserStockAnalysisView(View):
 
             logger.info(f"Fetching stock analyses for user: {user_email} {'for ticker: ' + ticker if ticker else ''}")
             
-            # Query Firestore for analyses
+            # Query Firestore for analyses with date filter
             db = firestore.client()
-            query = db.collection('stock_analysis').where('user_email', '==', user_email)
+            query = db.collection('stock_analysis')\
+                     .where('user_email', '==', user_email)\
+                     .where('timestamp', '>=', seven_days_ago)
             
             # Add ticker filter if provided
             if ticker:
                 query = query.where('ticker', '==', ticker.upper())
             
             # Get results
-            analyses = query.order_by('timestamp', direction=firestore.Query.DESCENDING).stream()
+            analyses = query.order_by('timestamp', direction=firestore.Query.DESCENDING).limit(page_size).stream()
             
             # Format the response data
             analysis_list = []
@@ -788,6 +795,7 @@ class UserStockAnalysisView(View):
                 'success': False,
                 'error': str(e)
             }, status=500)
+
 
 @method_decorator(csrf_exempt, name='dispatch')
 @method_decorator(firebase_auth_required, name='dispatch')
@@ -912,6 +920,66 @@ class StockTickerCSVUploadView(View):
                 
         except Exception as e:
             logger.error(f"Error processing CSV file: {str(e)}", exc_info=True)
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            }, status=500)
+
+class PublicBuyStocksView(View):
+    def get(self, request):
+        try:
+            # Get pagination parameters from query params
+            page_size = int(request.GET.get('page_size', 10))
+            page = int(request.GET.get('page', 1))
+            ticker = request.GET.get('ticker')
+            
+            # Calculate date 7 days ago
+            seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
+            
+            logger.info(f"Fetching public buy stocks {'for ticker: ' + ticker if ticker else ''}")
+            
+            # Query Firestore for buy recommendations
+            db = firestore.client()
+            query = db.collection('stock_analysis')\
+                     .where('timestamp', '>=', seven_days_ago)
+                
+            query = query.where('user_email', '==', "nipunhsud@gmail.com")
+                     
+            
+            # Add ticker filter if provided
+            if ticker:
+                query = query.where('ticker', '==', ticker.upper())
+            
+            # Get results
+            analyses = query.order_by('timestamp', direction=firestore.Query.DESCENDING).limit(10).stream()
+            
+            # Format the response data
+            analysis_list = []
+            for analysis in analyses:
+                data = analysis.to_dict()
+                analysis_list.append({
+                    'id': analysis.id,
+                    'ticker': data.get('ticker'),
+                    'analysis': data.get('analysis'),
+                    'price': data.get('price'),
+                    'timestamp': data.get('timestamp').isoformat() if data.get('timestamp') else None,
+                })
+            
+            # Sort by most recent first
+            analysis_list.sort(
+                key=lambda x: (
+                    -datetime.fromisoformat(x.get('timestamp')).timestamp() if x.get('timestamp') else float('-inf')
+                )
+            )
+            
+            logger.info(f"Found {len(analysis_list)} public buy recommendations")
+            return JsonResponse({
+                'success': True,
+                'analyses': analysis_list
+            })
+            
+        except Exception as e:
+            logger.error(f"Error fetching public buy stocks: {str(e)}", exc_info=True)
             return JsonResponse({
                 'success': False,
                 'error': str(e)

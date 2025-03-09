@@ -2,8 +2,21 @@ import re
 import ast
 import operator
 import requests
-
+import json
+import logging
+import os
 from dotenv import load_dotenv
+
+# Configure logger first, before any other code
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+console_handler.setFormatter(formatter)
+logger.addHandler(console_handler)
+
+# Then continue with other imports
 from langgraph.graph import END, START
 from langgraph.graph import StateGraph
 from typing import TypedDict, Annotated
@@ -16,7 +29,6 @@ from langchain_core.messages import SystemMessage
 from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_google_community import GmailToolkit
 from langchain_core.tools import tool
-import os
 from langchain_community.tools.google_finance import GoogleFinanceQueryRun
 from langchain_community.utilities.google_finance import GoogleFinanceAPIWrapper
 from langchain_community.tools.google_trends import GoogleTrendsQueryRun
@@ -307,6 +319,9 @@ ANALYSIS REQUIREMENTS:
         - volume analysis (increasing in the last 3 months)
         - moving average 20, 10 EMA increasing in the short term
         - Price action (higher highs/lows pattern) close to moving average 20 EMA or 50 EMA
+        - Consolidation areas and volatility patterns (Point out the consolidation areas and volatility patterns) [Reasoning] [details]
+        - Volume analysis (Point out the sudden volume increase  in the last 3 months) (higher than 100% of 52-week average) [Reasoning] [details]
+        - Consolidation depth should be shallow (less than 25% of the 52-week range) and length should be atleast than 2 month [Reasoning] [details]
    - Moving averages (50, 150, 200 EMA alignment) (increasing in the last 3 months)
    - Volume analysis vs 52-week average (Point out the sudden volume increase  in the last 3 months) (higher than 100% of 52-week average) [Reasoning] [details]
    - Volatility patterns and consolidation areas (Point out the consolidation areas and volatility patterns) [Reasoning] [details]
@@ -380,7 +395,7 @@ Your analysis must be presented in two formats - Markdown and JSON:
 - Technical Risks: [DETAILS] [Reasoning]
 
 **Final Recommendation** 
-- Action: [BUY/WAIT/WATCH]
+- Action: [BUY/WAIT/WATCH/EXTENDED/PULLBACK BUY/SELL]
 - Key Triggers: [DETAILS]
 - Risk Management: [DETAILS] 
 
@@ -469,20 +484,31 @@ TRADING RULES:
    - Volume is above average
    - Market trend is positive
    
-2. Recommend WAIT when:
+2. Recommend WATCH when:
    - Stock is 8-12% below 52-week high
    - Volume is below average
    - Technical pattern is incomplete
 
-3. Recommend WATCH when:
+3. Recommend WAIT when:
    - Stock is >12% below 52-week high
    - Fundamentals are strong but technicals are weak
    - Market conditions are unfavorable
 
+4. Recommend SELL when:
+   - Stock is 12% above 10EMA
+   - Downward trend in price with increasing volume
+   - Market trend is negative
+
+5. Recommend Pullback BUY when:
+   - Stock is 10% below 52-week high
+   - Volume is increasing
+   - Technical pattern is complete
+   - After a pullback to 10EMA
+
 Always maintain professional objectivity and provide clear reasoning for all recommendations.
 """
 
-model = ChatOpenAI(model="gpt-4o") 
+model = ChatOpenAI(model="gpt-4") 
 abot = StockAssistant()
 
 def _format_as_markdown(content: str) -> None:
@@ -492,20 +518,47 @@ def _format_as_markdown(content: str) -> None:
 
 def stock_generator(content):
     messages = [HumanMessage(content="Stock Ticker or Name: "+str(content)+".  Generate a stock trading strategy for this stock and give me the stock summary and analysis based on the rules deifined")]
-    result = abot.graph.invoke({"messages": messages})
     try:
-        # Save graph to a file instead of displaying
-        graph = abot.graph.get_graph()
-        graph.draw_mermaid_png(output_file_path="graph.png")
-        print("Graph saved as graph.png")
+        result = abot.graph.invoke({"messages": messages})
+        print(result)
+        # Try to save graph
+        try:
+            graph = abot.graph.get_graph()
+            graph.draw_mermaid_png(output_file_path="graph.png")
+            print("Graph saved as graph.png")
+        except Exception as e:
+            logger.error(f"Could not generate graph: {e}")
+        
+        # Parse JSON data
+        try:
+            message_content = result['messages'][-1].content
+            json_start = message_content.find("```json\n")
+            json_end = message_content.find("\n```", json_start)
+            
+            if json_start == -1 or json_end == -1:
+                raise ValueError("Could not find JSON block in response")
+            json_data = message_content[json_start + 7:json_end].strip()
+            
+            # Validate JSON structure
+            try:
+                json_parsed = json.loads(json_data)
+                if not isinstance(json_parsed, dict) or 'stock_summary' not in json_parsed:
+                    raise ValueError("Invalid JSON structure")
+                json_data = json.dumps(json_parsed)  # Normalize JSON string
+            except json.JSONDecodeError as e:
+                raise ValueError(f"Invalid JSON format: {e}")
+            
+            # Get stock price history
+            price_history = get_stock_quote(content)
+            if price_history is None:
+                logger.warning(f"Could not fetch price history for {content}")
+            
+            return _, json_data, price_history
+            
+        except Exception as e:
+            logger.error(f"Error parsing response for {content}: {e}")
+            raise ValueError(f"Could not parse analysis response: {e}")
+            
     except Exception as e:
-        print(f"Could not generate graph: {e}")
-    
-    try:
-        json_data = result['messages'][-1].content.split("\n\n```json\n")[1].split("\n```")[0]
-        # markdown_data = result['messages'][-1].content.split("\n\n```json\n")[0]
-        print(json_data)
-        price_history = get_stock_quote(content)
-    except Exception as e:
-        print(f"Could not serialize graph: {e}")
-    return _, json_data, price_history
+        logger.error(f"Error generating analysis for {content}: {e}")
+        raise ValueError(f"Could not generate stock analysis: {e}")

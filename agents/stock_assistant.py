@@ -508,7 +508,7 @@ TRADING RULES:
 Always maintain professional objectivity and provide clear reasoning for all recommendations.
 """
 
-model = ChatOpenAI(model="gpt-4") 
+model = ChatOpenAI(model="gpt-4o") 
 abot = StockAssistant()
 
 def _format_as_markdown(content: str) -> None:

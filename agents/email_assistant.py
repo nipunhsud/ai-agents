@@ -2,6 +2,7 @@ import re
 import ast
 import operator
 import yaml
+import json
 from pathlib import Path
 import platform
 
@@ -33,6 +34,9 @@ from email.mime.text import MIMEText
 import webbrowser
 from google.oauth2.credentials import Credentials
 from ai_assistant.utils import load_email_templates, save_email_template
+import smtplib
+from simplegmail import Gmail
+from simplegmail.query import construct_query
 
 SCOPES = ['https://mail.google.com/']
 tavily_tool = TavilySearchResults(max_results=4) #increased number of results
@@ -251,15 +255,8 @@ CORE RESPONSIBILITIES:
    - Provide alternative phrasings for different scenarios
    - Suggest follow-up timing and methods
 
-IF NEEDED, BEFORE COMPOSING, I WILL ASK ABOUT:
-1. Primary goal of the email
-2. Recipient details (role, relationship, cultural considerations)
-3. Level of urgency and importance
-4. Key points that must be included
-5. Preferred tone (formal, semi-formal, casual)
-6. Any specific requirements or constraints
 
-OUTPUT FORMAT:
+OUTPUT FORMAT IN JSON:
 1. Subject Line: [Suggested subject]
 2. Email Body: [Formatted email content]
 3. Notes: [Additional context or alternative suggestions]
@@ -272,7 +269,6 @@ abot = EmailAssistant()
 
 
 def email_generator(subject, from_email, to_email, original_content):
-    google_service = authenticate_gmail_api()
     # Combine email context for AI processing
     email_context = f"""
     Subject: {subject}
@@ -280,38 +276,36 @@ def email_generator(subject, from_email, to_email, original_content):
     To: {to_email}
     Content: {original_content}
     """
-              
+    print("Email Context:", email_context)
+    gmail = Gmail()
     messages = [HumanMessage(content="Following is the email content: "+str(email_context)+".  Craft a thoughtful response based on the email context provided. Always return subject and body easy to parse by the frontend.")]
     result = abot.graph.invoke({"messages": messages})
-    print(result['messages'][-1].content)
-    try:
-        profile = google_service.users().getProfile(userId='me').execute()
-        # Create a proper email message
-        message = MIMEText(result['messages'][-1].content)
-        message['to'] = from_email  # Replace with actual recipient
-        message['from'] = profile.get('emailAddress')
-        message['subject'] = subject
-        
-        # Encode the message
-        raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
-        body = {'raw': raw}
-        
-        # Send the message
-        send_message(google_service, body)
-        print("Email sent successfully")
-        
-    except Exception as e:
-        print(f"Error sending email: {e}")
+    print("Raw Response:", result['messages'][-1].content)
     
-    return result['messages'][-1].content
-
-def get_emails():
-    google_service = authenticate_gmail_api()
-    messages = list_messages(google_service, query='from:nipun_sud@hotmail.com')
-    message = get_message(google_service, messages[0]['id'])
-    print(message.get('payload').get('headers')[0].get('subject'))
-    return message.get('payload').get('headers')
-
+    # Parse JSON data
+    try:
+        message_content = result['messages'][-1].content
+        # Extract JSON from the response
+        json_start = message_content.find('{')
+        json_end = message_content.rfind('}') + 1
+        if json_start == -1 or json_end == -1:
+            raise ValueError("Could not find JSON in response")
+            
+        json_str = message_content[json_start:json_end]
+        print("Extracted JSON:", json_str)
+        json_data = json.loads(json_str)
+        print("Parsed JSON:", json_data)
+        
+        # Extract email body from the parsed JSON
+        email_body = json_data.get('Email Body', '')
+        subject = json_data.get('Subject Line', '')
+        if not email_body:
+            raise ValueError("Email Body not found in response")
+            
+        return email_body, subject
+    except Exception as e:
+        print(f"Error parsing response: {e}")
+        return result['messages'][-1].content  # Return raw content if parsing fails
 
 
 

@@ -79,8 +79,10 @@
         <div class="email-header">
             <div class="email-subject" id="originalSubject"></div>
             <div class="email-from" id="originalFrom"></div>
+            <div class="email-to" id="originalTo"></div>
+            <div class="email-content" id="originalContent"></div>
         </div>
-        <div class="email-content" id="originalContent"></div>
+        
         
         <h3>Compose Reply</h3>
         <textarea class="reply-area" id="replyContent" placeholder="Type your reply or let AI assist you"></textarea>
@@ -115,53 +117,55 @@
         });
 
         // Display Email from Headers
-        function displayEmail(headers) {
+        function displayEmail(emails) {
             const emailList = document.getElementById('emailList');
             emailList.innerHTML = '';
             
-            if (!headers || headers.length === 0) {
+            if (!emails || emails.length === 0) {
                 emailList.innerHTML = '<p>No emails found</p>';
                 return;
             }
 
-            const emailDiv = document.createElement('div');
-            emailDiv.className = 'email-container';
-            
-            // Extract relevant headers
-            const subject = headers.find(h => h.name === 'Subject')?.value || 'No Subject';
-            const from = headers.find(h => h.name === 'From')?.value || 'No Sender';
-            const to = headers.find(h => h.name === 'To')?.value || 'No Recipient';
-            const date = headers.find(h => h.name === 'Date')?.value || 'No Date';
-            const messageId = headers.find(h => h.name === 'Message-ID')?.value || '';
-            
-            // Add content to the page
-            emailDiv.innerHTML = `
-                <div class="email-header">
-                    <div class="email-subject">${subject}</div>
-                    <div class="email-from">From: ${from}</div>
-                    <div class="email-to">To: ${to}</div>
-                    <div class="email-date">Date: ${date}</div>
-                </div>
-                <div class="email-content" id="originalContent">
-                    <p>Subject: ${subject}</p>
-                    <p>From: ${from}</p>
-                    <p>To: ${to}</p>
-                    <p>Date: ${date}</p>
-                    <p>Message ID: ${messageId}</p>
-                </div>
-                <button onclick="showReplySection('${messageId}', '${subject}', '${from}', '${to}')">
-                    Reply
-                </button>
-            `;
-            emailList.appendChild(emailDiv);
+            // Loop through each email and create display elements
+            emails.forEach(email => {
+                const emailDiv = document.createElement('div');
+                emailDiv.className = 'email-container';
+                
+                // Extract email data
+                const subject = email.subject || 'No Subject';
+                const sender = email.sender || 'No Sender';
+                const recipient = email.recipient || 'No Recipient';
+                const date = email.date || 'No Date';
+                const snippet = email.snippet || '';
+                const emailId = email.id || '';
+                
+                // Add content to the page
+                emailDiv.innerHTML = `
+                    <div class="email-header">
+                        <div class="email-subject">${subject}</div>
+                        <div class="email-from">From: ${sender}</div>
+                        <div class="email-to">To: ${recipient}</div>
+                        <div class="email-date">Date: ${date}</div>
+                    </div>
+                    <div class="email-content" id="originalContent">
+                        ${snippet}
+                    </div>
+                    <button onclick="showReplySection('${emailId}', '${subject}', '${sender}', '${recipient}', '${snippet}')">
+                        Reply
+                    </button>
+                `;
+                emailList.appendChild(emailDiv);
+            });
         }
 
         // Show Reply Section
-        function showReplySection(messageId, subject, from, to) {
-            currentEmailId = messageId;
+        function showReplySection(emailId, subject, from, to, content) {
+            currentEmailId = emailId;
             document.getElementById('replySection').style.display = 'block';
             document.getElementById('originalSubject').textContent = subject;
             document.getElementById('originalFrom').textContent = `From: ${from}`;
+            document.getElementById('originalTo').textContent = `To: ${to}`;
+            document.getElementById('originalContent').innerHTML = `<p>${content}</p>`;
             document.getElementById('replyContent').value = '';
         }
 
@@ -174,8 +178,8 @@
             const emailData = {
                 email_id: currentEmailId,
                 subject: document.getElementById('originalSubject').textContent,
-                from: document.getElementById('originalFrom').textContent,
-                original_content: document.getElementById('originalContent').textContent || 'No content available',
+                from: document.getElementById('originalFrom').textContent.replace('From: ', ''),
+                original_content: document.querySelector('.email-content p').textContent.trim(),
                 to: document.getElementById('originalTo')?.textContent || ''
             };
             
@@ -191,9 +195,6 @@
                     },
                     body: JSON.stringify(emailData)
                 });
-                
-                // Debug log
-                console.log('Response:', await response.clone().json());
                 
                 const data = await response.json();
                 if (data.error) {

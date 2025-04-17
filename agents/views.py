@@ -22,17 +22,19 @@ from firebase_admin import firestore
 from firebase_admin import auth
 import stripe
 from django.core.files.uploadedfile import InMemoryUploadedFile
+from simplegmail import Gmail
+from simplegmail.query import construct_query
 
 from .agent import Agent
 from .models import Message
 from .models import Document
 from .models import Conversation
 from .gift_agent import gift_prediction
-from .email_assistant import get_emails
+# from .email_assistant import get_emails
 from .document_processor import DocumentProcessor
 from .technical_writer import TechnicalWriter, DocumentType, OutputFormat
 from .assistant import Assistant
-#from .email_assistant import email_generator
+from .email_assistant import email_generator
 from .stock_assistant import stock_generator
 from .rental_assistant import rental_generator
 from .slack import slack_generator
@@ -62,16 +64,6 @@ def email_assistant_page(request):
         logger.error(f"Error rendering react page: {str(e)}")
         return JsonResponse({'error': str(e)}, status=500)
 
-@ensure_csrf_cookie
-def fetch_emails(request):
-    if request.method == 'GET':
-        try:
-            emails = get_emails()
-            return JsonResponse({'emails': emails}, status=200)
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
-    return JsonResponse({'error': 'Method not allowed'}, status=405)
-    
 @ensure_csrf_cookie
 def gift_prediction_view(request):
     if request.method == 'POST':
@@ -749,39 +741,38 @@ class UserStockAnalysisView(View):
 
             logger.info(f"Fetching stock analyses for user: {user_email} {'for ticker: ' + ticker if ticker else ''}")
             
-            # Query Firestore for analyses with date filter
-            db = firestore.client()
+            # Create base query with recommendation filter
             query = db.collection('stock_analysis')\
-                     .where('user_email', '==', user_email)\
-                     .where('timestamp', '>=', seven_days_ago)
+                     .where('timestamp', '>=', seven_days_ago)\
+                     .where('user_email', '==', "nipunhsud@gmail.com")\
+                     .where('recommendation_action', '==', 'BUY')  # Add this field when saving
             
             # Add ticker filter if provided
             if ticker:
                 query = query.where('ticker', '==', ticker.upper())
             
-            # Get results
-            analyses = query.order_by('timestamp', direction=firestore.Query.DESCENDING).limit(page_size).stream()
+            # Get results with ordering
+            analyses = query.order_by(
+                'timestamp', 
+                direction=firestore.Query.DESCENDING
+            ).limit(10).stream()
             
-            # Format the response data
+            # Process results
             analysis_list = []
             for analysis in analyses:
                 data = analysis.to_dict()
-                analysis_list.append({
-                    'id': analysis.id,
-                    'ticker': data.get('ticker'),
-                    'analysis': data.get('analysis'),
-                    'markdown': data.get('markdown'),
-                    'timestamp': data.get('timestamp').isoformat() if data.get('timestamp') else None,
-                    'user_email': data.get('user_email')
-                })
-            
-            # Sort the list to put BUY recommendations first
-            analysis_list.sort(
-                key=lambda x: (
-                    0 if x.get('analysis', '').upper().find('BUY') != -1 else 1,
-                    -datetime.fromisoformat(x.get('timestamp')).timestamp() if x.get('timestamp') else float('-inf')
-                )
-            )
+                try:
+                    analysis_json = json.loads(data.get('analysis', '{}'))
+                    analysis_list.append({
+                        'id': analysis.id,
+                        'ticker': data.get('ticker'),
+                        'analysis': analysis_json,
+                        'price': data.get('price'),
+                        'timestamp': data.get('timestamp').isoformat() if data.get('timestamp') else None,
+                    })
+                except json.JSONDecodeError as e:
+                    logger.error(f"Failed to parse analysis JSON for document {analysis.id}: {e}")
+                    continue
             
             logger.info(f"Found {len(analysis_list)} analyses for user {user_email}")
             return JsonResponse({
@@ -983,5 +974,70 @@ class PublicBuyStocksView(View):
             return JsonResponse({
                 'success': False,
                 'error': str(e)
+            }, status=500)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class GmailFetchView(View):
+    def get(self, request):
+        try:
+            # Get query parameters
+            query = request.GET.get('query', '')
+            
+            # Initialize Gmail client
+            gmail = Gmail()
+            
+            # Construct query parameters
+            query_params = {
+                "newer_than": (1, "day"),
+                'subject': 'Great'
+            }
+            
+            # Add search query if provided
+            if query:
+                query_params["query"] = query
+            
+            print(query_params)
+            # Fetch messages
+            messages = gmail.get_messages(
+                query=construct_query(query_params)
+            )
+            print(messages)
+            # Format response
+            emails = []
+            for message in messages:
+                email_data = {
+                    'id': message.id,
+                    'subject': message.subject,
+                    'sender': message.sender,
+                    'recipient': message.recipient,
+                    'date': message.date,
+                    'snippet': message.snippet,
+                    'body_plain': message.plain,
+                    'body_html': message.html,
+                    'thread_id': message.thread_id,
+                }
+                
+                # Add attachment info if present
+                # if message.attachments:
+                #     email_data['attachments'] = [
+                #         {
+                #             'filename': att.filename,
+                #             'size': att.size,
+                #             'mime_type': att.mime_type
+                #         } for att in message.attachments
+                #     ]
+                
+                emails.append(email_data)
+
+            return JsonResponse({
+                'emails': emails,
+                'count': len(emails)
+            })
+
+        except Exception as e:
+            logger.error(f"Error fetching emails: {str(e)}", exc_info=True)
+            return JsonResponse({
+                'error': 'Failed to fetch emails',
+                'detail': str(e)
             }, status=500)
     

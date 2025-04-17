@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from agents.views import GetCSRFToken, RAGAssistantView, StripeWebhookView, StripeCheckoutView  
+from agents.views import GetCSRFToken, RAGAssistantView, StripeWebhookView, StripeCheckoutView, GmailFetchView  
 from agents import views
 from slack_agent.views import test,add_slack_token,handle_message,send_messages,slack_success_view
 from code_reviewer_agent.views import code_reviewer_view,github_webhook,github_keys_form,submit_keys,success_view
@@ -55,6 +55,7 @@ urlpatterns = [
     path('user/stock-analyses/', views.UserStockAnalysisView.as_view(), name='user_stock_analyses'),
     path('user/stock-analyses-csv/', views.StockTickerCSVUploadView.as_view(), name='stock_analyses_csv_upload'),
     path('api/public-buy-stocks/', views.PublicBuyStocksView.as_view(), name='public-buy-stocks'),
+    path('fetch_emails/', GmailFetchView.as_view(), name='fetch_emails'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 

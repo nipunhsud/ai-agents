@@ -277,7 +277,6 @@ def email_generator(subject, from_email, to_email, original_content):
     Content: {original_content}
     """
     print("Email Context:", email_context)
-    gmail = Gmail()
     messages = [HumanMessage(content="Following is the email content: "+str(email_context)+".  Craft a thoughtful response based on the email context provided. Always return subject and body easy to parse by the frontend.")]
     result = abot.graph.invoke({"messages": messages})
     print("Raw Response:", result['messages'][-1].content)
@@ -285,6 +284,7 @@ def email_generator(subject, from_email, to_email, original_content):
     # Parse JSON data
     try:
         message_content = result['messages'][-1].content
+        print("Message Content:", message_content)
         # Extract JSON from the response
         json_start = message_content.find('{')
         json_end = message_content.rfind('}') + 1

@@ -24,6 +24,8 @@ import stripe
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from simplegmail import Gmail
 from simplegmail.query import construct_query
+from email.mime.text import MIMEText
+import base64
 
 from .agent import Agent
 from .models import Message
@@ -1041,4 +1043,52 @@ class GmailFetchView(View):
                 'error': 'Failed to fetch emails',
                 'detail': str(e)
             }, status=500)
+
+@csrf_protect
+def send_reply(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        # Get all required fields from the request
+        email_id = request.POST.get('email_id')
+        subject = request.POST.get('subject')
+        reply_content = request.POST.get('reply_content')
+        to_email = request.POST.get('to_email')
+        from_email = request.POST.get('from_email')
+        thread_id = request.POST.get('thread_id')
+        
+        if not all([email_id, subject, reply_content, to_email, from_email]):
+            return JsonResponse({'error': 'Missing required fields'}, status=400)
+
+        # Initialize Gmail API
+        gmail = Gmail()
+
+        # Create the email message
+        message = MIMEText(reply_content)
+        message['to'] = to_email
+        message['from'] = from_email
+        message['subject'] = subject
+        
+        # Set In-Reply-To and References headers for threading
+        if thread_id:
+            message['In-Reply-To'] = f'<{thread_id}@mail.gmail.com>'
+            message['References'] = f'<{thread_id}@mail.gmail.com>'
+            
+        # Convert the message to base64 encoded string
+        raw = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
+            
+        # Send the email using the correct method signature
+        gmail.send_message(
+            sender=from_email,
+            to=to_email,
+            subject=subject,
+            msg_plain=reply_content,
+        )
+        
+        return JsonResponse({'success': True})
+        
+    except Exception as e:
+        logger.error(f"Error sending reply: {str(e)}", exc_info=True)
+        return JsonResponse({'error': str(e)}, status=500)
     

@@ -356,17 +356,22 @@
             if (!currentEmailId) return;
             
             try {
+                const formData = new URLSearchParams({
+                    'email_id': currentEmailId,
+                    'subject': document.getElementById('replySubject').value,
+                    'reply_content': document.getElementById('replyContent').value,
+                    'to_email': document.getElementById('originalFrom').textContent.replace('From: ', ''),
+                    'from_email': document.getElementById('originalTo').textContent.replace('To: ', ''),
+                    'thread_id': currentEmailId // Using email_id as thread_id since they're related
+                });
+
                 const response = await fetch('/send_reply/', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                         'X-CSRFToken': csrfToken,
                     },
-                    body: new URLSearchParams({
-                        'email_id': currentEmailId,
-                        'subject': document.getElementById('replySubject').value,
-                        'reply_content': document.getElementById('replyContent').value
-                    })
+                    body: formData
                 });
                 
                 const data = await response.json();

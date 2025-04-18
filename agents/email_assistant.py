@@ -302,7 +302,7 @@ def email_generator(subject, from_email, to_email, original_content):
         if not email_body:
             raise ValueError("Email Body not found in response")
             
-        return email_body, subject
+        return json_data
     except Exception as e:
         print(f"Error parsing response: {e}")
         return result['messages'][-1].content  # Return raw content if parsing fails

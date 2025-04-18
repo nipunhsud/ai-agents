@@ -420,6 +420,7 @@ class AssistantView(View):
         return JsonResponse({'response': "ok"})
 
 @method_decorator(ensure_csrf_cookie, name='dispatch')
+@method_decorator(csrf_protect, name='dispatch')
 class EmailAssistantView(View):
     def get(self, request):
         return render(request, 'chat/email_writer.html')
@@ -428,10 +429,10 @@ class EmailAssistantView(View):
         try:
             data = json.loads(request.body)
             response = email_generator(
-                data.get('subject', ''),
-                data.get('from', ''),
-                data.get('to', ''),
-                data.get('original_content', '')
+                subject=data.get('subject', ''),
+                from_email=data.get('from', ''),
+                to_email=data.get('to', ''),
+                original_content=data.get('original_content', '')
             )
             return JsonResponse({'response': response})
         except Exception as e:

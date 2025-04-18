@@ -4,94 +4,195 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Email Assistant</title>
+    {% csrf_token %}
     <style>
         body {
             font-family: Arial, sans-serif;
-            margin: 20px;
-            max-width: 800px;
-            margin: 0 auto;
+            margin: 0;
+            padding: 0;
+            background-color: #f6f8fc;
+        }
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+        .sidebar {
+            width: 200px;
+            background-color: #f1f3f4;
             padding: 20px;
+            border-right: 1px solid #ddd;
         }
-        .email-container {
-            border: 1px solid #ddd;
-            padding: 15px;
-            margin-bottom: 20px;
-            border-radius: 5px;
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
         }
-        .email-header {
-            margin-bottom: 10px;
-            padding-bottom: 10px;
+        .email-list {
+            flex: 1;
+            background-color: white;
+            border-radius: 8px;
+            margin: 16px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        .email-item {
+            padding: 12px 16px;
             border-bottom: 1px solid #eee;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
+        .email-item:hover {
+            background-color: #f5f5f5;
+        }
+        .email-item.selected {
+            background-color: #e8f0fe;
+        }
+        .email-sender {
+            font-weight: bold;
+            width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         .email-subject {
-            font-weight: bold;
+            flex: 1;
+            margin: 0 16px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
-        .email-from {
+        .email-date {
             color: #666;
+            font-size: 0.9em;
         }
-        .email-content {
-            margin-bottom: 15px;
+        .email-preview {
+            padding: 16px;
+            background-color: white;
+            border-radius: 8px;
+            margin: 16px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
         }
-        .reply-area {
-            width: 100%;
-            min-height: 100px;
-            margin: 10px 0;
-            padding: 10px;
+        .email-header {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 16px;
+            margin-bottom: 16px;
+        }
+        .email-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
         }
         button {
-            padding: 10px 20px;
-            background-color: #007bff;
-            color: white;
+            padding: 8px 16px;
             border: none;
-            border-radius: 5px;
+            border-radius: 4px;
             cursor: pointer;
+            font-weight: 500;
         }
-        button:hover {
-            background-color: #0056b3;
+        .primary-button {
+            background-color: #1a73e8;
+            color: white;
         }
-        #response {
-            margin-top: 20px;
-            padding: 10px;
-            border: 1px solid #ccc;
-            background-color: #f9f9f9;
+        .secondary-button {
+            background-color: #f1f3f4;
+            color: #202124;
         }
         .loading {
             display: none;
             color: #666;
             font-style: italic;
         }
+        .compose-button {
+            background-color: #c2e7ff;
+            color: #001d35;
+            padding: 12px 24px;
+            border-radius: 16px;
+            margin: 16px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .compose-button:hover {
+            background-color: #b3e0ff;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        .fetch-button {
+            background-color: #f1f3f4;
+            color: #202124;
+            padding: 12px 24px;
+            border-radius: 16px;
+            margin: 16px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            justify-content: center;
+        }
+        .fetch-button:hover {
+            background-color: #e8eaed;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        .reply-section {
+            margin-top: 20px;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+        .reply-header {
+            margin-bottom: 16px;
+        }
+        .reply-subject {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            margin-bottom: 16px;
+        }
     </style>
 </head>
 <body>
-    <h1>Email Assistant</h1>
-    
-    <!-- Add CSRF Token -->
-    {% csrf_token %}
-    
-    <!-- Email Fetch Section -->
-    <div class="email-container">
-        <button id="fetchEmails">Fetch Latest Emails</button>
-        <div id="emailList"></div>
-    </div>
-
-    <!-- Reply Section -->
-    <div class="email-container" id="replySection" style="display: none;">
-        <div class="email-header">
-            <div class="email-subject" id="originalSubject"></div>
-            <div class="email-from" id="originalFrom"></div>
-            <div class="email-to" id="originalTo"></div>
-            <div class="email-content" id="originalContent"></div>
+    <div class="container">
+        <div class="sidebar">
+            <button class="compose-button" id="composeButton">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6C22 4.9 21.1 4 20 4ZM20 18H4V8L12 13L20 8V18ZM12 11L4 6H20L12 11Z" fill="currentColor"/>
+                </svg>
+                Compose
+            </button>
+            <button class="fetch-button" id="fetchEmails">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6C22 4.9 21.1 4 20 4ZM20 18H4V8L12 13L20 8V18ZM12 11L4 6H20L12 11Z" fill="currentColor"/>
+                </svg>
+                Fetch Emails
+            </button>
         </div>
-        
-        
-        <h3>Compose Reply</h3>
-        <textarea class="reply-area" id="replyContent" placeholder="Type your reply or let AI assist you"></textarea>
-        <button id="generateAIReply">Generate AI Reply</button>
-        <button id="sendReply">Send Reply</button>
-        <div class="loading" id="loadingIndicator">Generating reply...</div>
+        <div class="main-content">
+            <div class="email-list" id="emailList">
+                <!-- Email items will be inserted here -->
+            </div>
+            <div class="email-preview" id="replySection" style="display: none;">
+                <div class="email-header">
+                    <div class="email-subject" id="originalSubject"></div>
+                    <div class="email-from" id="originalFrom"></div>
+                    <div class="email-to" id="originalTo"></div>
+                </div>
+                <div class="email-content" id="originalContent"></div>
+                <div class="reply-section">
+                    <div class="reply-header">
+                        <input type="text" id="replySubject" placeholder="Subject" class="reply-subject">
+                    </div>
+                    <textarea class="reply-area" id="replyContent" placeholder="Type your reply or let AI assist you" style="width: 100%; min-height: 100px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-top: 16px;"></textarea>
+                    <div class="email-actions">
+                        <button class="primary-button" id="generateAIReply">Generate AI Reply</button>
+                        <button class="secondary-button" id="sendReply">Send</button>
+                    </div>
+                    <div class="loading" id="loadingIndicator">Generating reply...</div>
+                </div>
+            </div>
+        </div>
     </div>
-
-    <div id="response"></div>
 
     <script>
         // Update CSRF token retrieval to handle potential null value
@@ -129,7 +230,7 @@
             // Loop through each email and create display elements
             emails.forEach(email => {
                 const emailDiv = document.createElement('div');
-                emailDiv.className = 'email-container';
+                emailDiv.className = 'email-item';
                 
                 // Extract email data
                 const subject = email.subject || 'No Subject';
@@ -141,19 +242,21 @@
                 
                 // Add content to the page
                 emailDiv.innerHTML = `
-                    <div class="email-header">
-                        <div class="email-subject">${subject}</div>
-                        <div class="email-from">From: ${sender}</div>
-                        <div class="email-to">To: ${recipient}</div>
-                        <div class="email-date">Date: ${date}</div>
-                    </div>
-                    <div class="email-content" id="originalContent">
-                        ${snippet}
-                    </div>
-                    <button onclick="showReplySection('${emailId}', '${subject}', '${sender}', '${recipient}', '${snippet}')">
-                        Reply
-                    </button>
+                    <div class="email-sender">${sender}</div>
+                    <div class="email-subject">${subject}</div>
+                    <div class="email-date">${date}</div>
                 `;
+                
+                emailDiv.addEventListener('click', () => {
+                    // Remove selected class from all items
+                    document.querySelectorAll('.email-item').forEach(item => {
+                        item.classList.remove('selected');
+                    });
+                    // Add selected class to clicked item
+                    emailDiv.classList.add('selected');
+                    showReplySection(emailId, subject, sender, recipient, snippet);
+                });
+                
                 emailList.appendChild(emailDiv);
             });
         }
@@ -180,11 +283,8 @@
                 subject: document.getElementById('originalSubject').textContent,
                 from: document.getElementById('originalFrom').textContent.replace('From: ', ''),
                 original_content: document.querySelector('.email-content p').textContent.trim(),
-                to: document.getElementById('originalTo')?.textContent || ''
+                to: document.getElementById('originalTo')?.textContent.replace('To: ', '') || ''
             };
-            
-            // Debug log
-            console.log('Sending email data:', emailData);
             
             try {
                 const response = await fetch('/email_assistant/', {
@@ -201,7 +301,48 @@
                     alert('Error: ' + data.error);
                     return;
                 }
-                document.getElementById('replyContent').value = data.response;
+
+                console.log('Response data:', data); // Debug log
+
+                // Handle the response data
+                if (typeof data.response === 'string') {
+                    // If response is a string, try to parse it as JSON
+                    try {
+                        const parsedResponse = JSON.parse(data.response);
+                        document.getElementById('replySubject').value = parsedResponse['Subject Line'] || '';
+                        document.getElementById('replyContent').value = parsedResponse['Email Body'] || '';
+                    } catch (e) {
+                        // If parsing fails, use the raw string
+                        document.getElementById('replyContent').value = data.response;
+                    }
+                } else if (typeof data.response === 'object') {
+                    // If response is already an object, use it directly
+                    document.getElementById('replySubject').value = data.response['Subject Line'] || '';
+                    document.getElementById('replyContent').value = data.response['Email Body'] || '';
+                }
+
+                // Display tips if they exist
+                if (data.response.Tips && Array.isArray(data.response.Tips)) {
+                    let tipsContainer = document.getElementById('tipsContainer');
+                    if (!tipsContainer) {
+                        tipsContainer = document.createElement('div');
+                        tipsContainer.id = 'tipsContainer';
+                        tipsContainer.style.marginTop = '16px';
+                        tipsContainer.style.padding = '12px';
+                        tipsContainer.style.backgroundColor = '#f8f9fa';
+                        tipsContainer.style.borderRadius = '4px';
+                        document.querySelector('.reply-section').appendChild(tipsContainer);
+                    }
+
+                    // Display tips
+                    tipsContainer.innerHTML = `
+                        <h4 style="margin-top: 0; color: #1a73e8;">Tips:</h4>
+                        <ul style="margin: 0; padding-left: 20px;">
+                            ${data.response.Tips.map(tip => `<li style="margin-bottom: 4px;">${tip}</li>`).join('')}
+                        </ul>
+                    `;
+                }
+
             } catch (error) {
                 console.error('Error generating reply:', error);
                 alert('Failed to generate reply');
@@ -223,6 +364,7 @@
                     },
                     body: new URLSearchParams({
                         'email_id': currentEmailId,
+                        'subject': document.getElementById('replySubject').value,
                         'reply_content': document.getElementById('replyContent').value
                     })
                 });
@@ -238,6 +380,16 @@
                 console.error('Error sending reply:', error);
                 alert('Error sending reply');
             }
+        });
+
+        // Compose Email
+        document.getElementById('composeButton').addEventListener('click', () => {
+            document.getElementById('replySection').style.display = 'block';
+            document.getElementById('originalSubject').textContent = '';
+            document.getElementById('originalFrom').textContent = '';
+            document.getElementById('originalTo').textContent = '';
+            document.getElementById('originalContent').innerHTML = '';
+            document.getElementById('replyContent').value = '';
         });
     </script>
 </body>

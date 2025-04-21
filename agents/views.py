@@ -444,9 +444,48 @@ class EmailAssistantView(View):
 def fetch_emails(request):
     if request.method == 'GET':
         try:
-            emails = get_emails()
-            return JsonResponse({'emails': emails}, status=200)
+            # Get the subject filter from query parameters
+            subject_filter = request.GET.get('query', '')
+            
+            # Initialize Gmail client
+            gmail = Gmail()
+            
+            # Construct query parameters
+            query_params = {
+                "newer_than": (1, "day"),
+            }
+            
+            # Add subject filter if provided
+            if subject_filter:
+                query_params["subject"] = subject_filter
+            
+            # Fetch messages
+            messages = gmail.get_messages(
+                query=construct_query(query_params)
+            )
+            
+            # Format response
+            emails = []
+            for message in messages:
+                email_data = {
+                    'id': message.id,
+                    'subject': message.subject,
+                    'sender': message.sender,
+                    'recipient': message.recipient,
+                    'date': message.date,
+                    'snippet': message.snippet,
+                    'body_plain': message.plain,
+                    'body_html': message.html,
+                    'thread_id': message.thread_id,
+                }
+                emails.append(email_data)
+
+            return JsonResponse({
+                'emails': emails,
+                'count': len(emails)
+            })
         except Exception as e:
+            logger.error(f"Error fetching emails: {str(e)}", exc_info=True)
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'Method not allowed'}, status=405)
 
@@ -992,12 +1031,11 @@ class GmailFetchView(View):
             # Construct query parameters
             query_params = {
                 "newer_than": (1, "day"),
-                'subject': 'Great'
             }
             
             # Add search query if provided
             if query:
-                query_params["query"] = query
+                query_params["subject"] = query
             
             print(query_params)
             # Fetch messages

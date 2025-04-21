@@ -102,6 +102,20 @@
             color: #666;
             font-style: italic;
         }
+        .loading-icon {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #1a73e8;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
         .compose-button {
             background-color: #c2e7ff;
             color: #001d35;
@@ -161,12 +175,19 @@
                 </svg>
                 Compose
             </button>
+            <div style="padding: 16px;">
+                <input type="text" id="subjectFilter" placeholder="Filter by subject" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 8px;">
+            </div>
             <button class="fetch-button" id="fetchEmails">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6C22 4.9 21.1 4 20 4ZM20 18H4V8L12 13L20 8V18ZM12 11L4 6H20L12 11Z" fill="currentColor"/>
                 </svg>
                 Fetch Emails
             </button>
+            <div class="loading" id="emailLoading">
+                <div class="loading-icon"></div>
+                <span>Fetching emails...</span>
+            </div>
         </div>
         <div class="main-content">
             <div class="email-list" id="emailList">
@@ -201,8 +222,16 @@
 
         // Fetch Emails
         document.getElementById('fetchEmails').addEventListener('click', async () => {
+            const loadingIndicator = document.getElementById('emailLoading');
+            const fetchButton = document.getElementById('fetchEmails');
+            
             try {
-                const response = await fetch('/fetch_emails/', {
+                // Show loading indicator and disable button
+                loadingIndicator.style.display = 'block';
+                fetchButton.disabled = true;
+                
+                const subjectFilter = document.getElementById('subjectFilter').value;
+                const response = await fetch(`/fetch_emails/?query=${encodeURIComponent(subjectFilter)}`, {
                     method: 'GET',
                     headers: {
                         'Accept': 'application/json',
@@ -210,10 +239,20 @@
                     },
                     credentials: 'same-origin'
                 });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
                 const data = await response.json();
                 displayEmail(data.emails);
             } catch (error) {
                 console.error('Error fetching emails:', error);
+                alert('Failed to fetch emails. Please try again.');
+            } finally {
+                // Hide loading indicator and enable button
+                loadingIndicator.style.display = 'none';
+                fetchButton.disabled = false;
             }
         });
 

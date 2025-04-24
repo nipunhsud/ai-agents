@@ -445,19 +445,20 @@ def fetch_emails(request):
     if request.method == 'GET':
         try:
             # Get the subject filter from query parameters
-            subject_filter = request.GET.get('query', '')
+            query = request.GET.get('query', '')
             
             # Initialize Gmail client
             gmail = Gmail()
             
             # Construct query parameters
-            query_params = {
-                "newer_than": (1, "day"),
-            }
+            query_params = {}
             
-            # Add subject filter if provided
-            if subject_filter:
-                query_params["subject"] = subject_filter
+            # If query exists, use it for filtering
+            if query:
+                query_params["subject"] = query
+            else:
+                # If no query, only show emails from past day
+                query_params["newer_than"] = (1, "day")
             
             # Fetch messages
             messages = gmail.get_messages(
@@ -782,7 +783,7 @@ class UserStockAnalysisView(View):
                 }, status=401)
 
             logger.info(f"Fetching stock analyses for user: {user_email} {'for ticker: ' + ticker if ticker else ''}")
-            
+            db = firestore.client()
             # Create base query with recommendation filter
             query = db.collection('stock_analysis')\
                      .where('timestamp', '>=', seven_days_ago)\
@@ -1027,17 +1028,14 @@ class GmailFetchView(View):
             
             # Initialize Gmail client
             gmail = Gmail()
+            query_params = {}
             
-            # Construct query parameters
-            query_params = {
-                "newer_than": (1, "day"),
-            }
-            
-            # Add search query if provided
+            # If query exists, use it for filtering
             if query:
                 query_params["subject"] = query
-            
-            print(query_params)
+            else:
+                # If no query, only show emails from past day
+                query_params["newer_than"] = (1, "day")
             # Fetch messages
             messages = gmail.get_messages(
                 query=construct_query(query_params)

@@ -39,6 +39,7 @@ from ai_assistant.utils import load_email_templates, save_email_template
 import smtplib
 from simplegmail import Gmail
 from simplegmail.query import construct_query
+import subprocess
 
 SCOPES = ['https://mail.google.com/']
 tavily_tool = TavilySearchResults(max_results=4) #increased number of results
@@ -50,6 +51,20 @@ chat = ChatOpenAI(
     model_name="gpt-4"  # You can also use "gpt-4" if you have access
 )
 
+def setup_chrome():
+    """Setup Chrome for headless operation"""
+    try:
+        # Check if Chrome is installed
+        subprocess.run(['google-chrome', '--version'], capture_output=True, check=True)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        # Install Chrome if not present
+        subprocess.run(['apt-get', 'update'], check=True)
+        subprocess.run(['apt-get', 'install', '-y', 'wget', 'gnupg2'], check=True)
+        subprocess.run(['wget', '-q', '-O', '-', 'https://dl-ssl.google.com/linux/linux_signing_key.pub', '|', 'apt-key', 'add', '-'], shell=True, check=True)
+        subprocess.run(['echo', '"deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main"', '>', '/etc/apt/sources.list.d/google.list'], shell=True, check=True)
+        subprocess.run(['apt-get', 'update'], check=True)
+        subprocess.run(['apt-get', 'install', '-y', 'google-chrome-stable'], check=True)
+
 def authenticate_gmail_api(user):
     """
     Authenticate Gmail API for a specific user.
@@ -60,6 +75,9 @@ def authenticate_gmail_api(user):
     Returns:
         Gmail API service object
     """
+    # Setup Chrome for headless operation
+    setup_chrome()
+    
     creds = None
     
     # Try to get existing token from database
@@ -77,7 +95,8 @@ def authenticate_gmail_api(user):
             flow = InstalledAppFlow.from_client_secrets_file(
                 "client_secret.json", SCOPES
             )
-            creds = flow.run_local_server(port=0)
+            # Use headless browser for authentication
+            creds = flow.run_local_server(port=0, browser=webbrowser.get('chrome'))
             
         # Save or update the credentials in the database
         token_data = pickle.dumps(creds)

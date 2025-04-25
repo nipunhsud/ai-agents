@@ -2,6 +2,10 @@
 # Exit on error
 set -o errexit
 
+# Get the directory where the script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd "$SCRIPT_DIR"
+
 STORAGE_DIR=/opt/render/project/.render
 
 # Create Chrome directory
@@ -17,7 +21,11 @@ rm google-chrome-stable_current_amd64.deb
 # Set Chrome binary path
 export CHROME_BIN=$STORAGE_DIR/chrome/opt/google/chrome/google-chrome
 
+# Return to project directory
+cd "$SCRIPT_DIR"
+
 # Install Python dependencies
+echo "Installing Python dependencies..."
 pip install -r requirements.txt
 
 # Convert static asset files

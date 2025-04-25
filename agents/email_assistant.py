@@ -54,16 +54,19 @@ chat = ChatOpenAI(
 def setup_chrome():
     """Setup Chrome for headless operation"""
     try:
-        # Check if Chrome is installed
-        subprocess.run(['google-chrome', '--version'], capture_output=True, check=True)
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        # Install Chrome if not present
-        subprocess.run(['apt-get', 'update'], check=True)
-        subprocess.run(['apt-get', 'install', '-y', 'wget', 'gnupg2'], check=True)
-        subprocess.run(['wget', '-q', '-O', '-', 'https://dl-ssl.google.com/linux/linux_signing_key.pub', '|', 'apt-key', 'add', '-'], shell=True, check=True)
-        subprocess.run(['echo', '"deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main"', '>', '/etc/apt/sources.list.d/google.list'], shell=True, check=True)
-        subprocess.run(['apt-get', 'update'], check=True)
-        subprocess.run(['apt-get', 'install', '-y', 'google-chrome-stable'], check=True)
+        # Check if Chrome is installed in the storage directory
+        chrome_bin = os.getenv('CHROME_BIN')
+        if not chrome_bin or not os.path.exists(chrome_bin):
+            # If not found, try to find Chrome in the storage directory
+            storage_dir = '/opt/render/project/.render/chrome'
+            chrome_bin = os.path.join(storage_dir, 'opt/google/chrome/google-chrome')
+            if os.path.exists(chrome_bin):
+                os.environ['CHROME_BIN'] = chrome_bin
+            else:
+                raise FileNotFoundError("Chrome binary not found")
+    except Exception as e:
+        print(f"Error setting up Chrome: {e}")
+        raise
 
 def authenticate_gmail_api(user):
     """

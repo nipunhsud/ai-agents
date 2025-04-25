@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Email Assistant</title>
+    {% csrf_token %}
+    <!-- Add Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f6f8fc;
+        }
+        .login-container {
+            background-color: white;
+            padding: 32px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+        .login-header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .login-header h1 {
+            color: #202124;
+            margin: 0;
+            font-size: 24px;
+        }
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        label {
+            color: #202124;
+            font-weight: 500;
+        }
+        input {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            padding: 12px;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .primary-button {
+            background-color: #1a73e8;
+            color: white;
+        }
+        .primary-button:hover {
+            background-color: #1557b0;
+        }
+        .secondary-button {
+            background-color: #f1f3f4;
+            color: #202124;
+        }
+        .secondary-button:hover {
+            background-color: #e8eaed;
+        }
+        .error-message {
+            color: #d93025;
+            font-size: 14px;
+            margin-top: 8px;
+            display: none;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 16px;
+        }
+        .loading-icon {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #1a73e8;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .toggle-form {
+            text-align: center;
+            margin-top: 16px;
+        }
+        .toggle-form button {
+            background: none;
+            border: none;
+            color: #1a73e8;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 0;
+        }
+        .toggle-form button:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <h1 id="formTitle">Login to Email Assistant</h1>
+        </div>
+        <form class="login-form" id="authForm">
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" required>
+            </div>
+            <div id="confirmPasswordGroup" class="form-group" style="display: none;">
+                <label for="confirmPassword">Confirm Password</label>
+                <input type="password" id="confirmPassword">
+            </div>
+            <button type="submit" class="primary-button" id="submitButton">Sign In</button>
+            <div class="error-message" id="errorMessage"></div>
+            <div class="loading" id="loadingIndicator">
+                <div class="loading-icon"></div>
+                <span id="loadingText">Signing in...</span>
+            </div>
+        </form>
+        <div class="toggle-form">
+            <button type="button" id="toggleForm">Don't have an account? Sign up</button>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyAte-xVLE3dIVPAJNbc8qhSf_55q9vCzpM",
+            authDomain: "purnam-442622.firebaseapp.com",
+            projectId: "purnam-442622",
+            storageBucket: "purnam-442622.appspot.com",
+            messagingSenderId: "986789349604",
+            appId: "1:608420925602:web:1306472621d2510df647fb"
+        };
+        firebase.initializeApp(firebaseConfig);
+
+        // Get form elements
+        const authForm = document.getElementById('authForm');
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const confirmPasswordGroup = document.getElementById('confirmPasswordGroup');
+        const confirmPasswordInput = document.getElementById('confirmPassword');
+        const errorMessage = document.getElementById('errorMessage');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const loadingText = document.getElementById('loadingText');
+        const formTitle = document.getElementById('formTitle');
+        const submitButton = document.getElementById('submitButton');
+        const toggleFormButton = document.getElementById('toggleForm');
+
+        let isSignUp = false;
+
+        // Helper functions
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+        }
+
+        function hideError() {
+            errorMessage.style.display = 'none';
+        }
+
+        function showLoading(text) {
+            loadingText.textContent = text;
+            loadingIndicator.style.display = 'block';
+            submitButton.disabled = true;
+        }
+
+        function hideLoading() {
+            loadingIndicator.style.display = 'none';
+            submitButton.disabled = false;
+        }
+
+        function toggleForm() {
+            isSignUp = !isSignUp;
+            formTitle.textContent = isSignUp ? 'Sign Up for Email Assistant' : 'Login to Email Assistant';
+            submitButton.textContent = isSignUp ? 'Sign Up' : 'Sign In';
+            toggleFormButton.textContent = isSignUp ? 'Already have an account? Sign in' : 'Don\'t have an account? Sign up';
+            confirmPasswordGroup.style.display = isSignUp ? 'flex' : 'none';
+            confirmPasswordInput.required = isSignUp;
+            hideError();
+        }
+
+        // Handle form submission
+        authForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            const confirmPassword = confirmPasswordInput.value;
+
+            if (!email || !password) {
+                showError('Please enter both email and password');
+                return;
+            }
+
+            if (isSignUp && password !== confirmPassword) {
+                showError('Passwords do not match');
+                return;
+            }
+
+            try {
+                showLoading(isSignUp ? 'Creating account...' : 'Signing in...');
+                hideError();
+
+                let userCredential;
+                if (isSignUp) {
+                    // Create new user
+                    userCredential = await firebase.auth().createUserWithEmailAndPassword(email, password);
+                } else {
+                    // Sign in existing user
+                    userCredential = await firebase.auth().signInWithEmailAndPassword(email, password);
+                }
+
+                const idToken = await userCredential.user.getIdToken();
+
+                // Get CSRF token
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+                // Send ID token to backend
+                const response = await fetch('/login/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ idToken })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    window.location.href = '/email_assistant/';
+                } else {
+                    showError(data.error || (isSignUp ? 'Sign up failed' : 'Sign in failed'));
+                }
+            } catch (error) {
+                showError(error.message || 'An error occurred. Please try again.');
+            } finally {
+                hideLoading();
+            }
+        });
+
+        // Handle form toggle
+        toggleFormButton.addEventListener('click', toggleForm);
+
+        // Check if user is already signed in
+        firebase.auth().onAuthStateChanged((user) => {
+            if (user) {
+                window.location.href = '/email_assistant/';
+            }
+        });
+    </script>
+</body>
+</html> 

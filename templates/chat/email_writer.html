@@ -5,6 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Email Assistant</title>
     {% csrf_token %}
+    <!-- Add Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script>
+        // Initialize Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyAte-xVLE3dIVPAJNbc8qhSf_55q9vCzpM",
+            authDomain: "purnam-442622.firebaseapp.com",
+            projectId: "purnam-442622",
+            storageBucket: "purnam-442622.appspot.com",
+            messagingSenderId: "986789349604",
+            appId: "1:608420925602:web:1306472621d2510df647fb"
+        };
+        firebase.initializeApp(firebaseConfig);
+
+        // Check authentication state
+        firebase.auth().onAuthStateChanged((user) => {
+            if (!user) {
+                // Redirect to login page if not authenticated
+                window.location.href = '/login/';
+            }
+        });
+    </script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -188,6 +211,10 @@
                 <div class="loading-icon"></div>
                 <span>Fetching emails...</span>
             </div>
+            <!-- Add logout button -->
+            <button class="fetch-button" id="logoutButton" style="margin-top: 16px; background-color: #dc3545; color: white;">
+                Logout
+            </button>
         </div>
         <div class="main-content">
             <div class="email-list" id="emailList">
@@ -230,17 +257,30 @@
                 loadingIndicator.style.display = 'block';
                 fetchButton.disabled = true;
                 
+                // Get Firebase token
+                const user = firebase.auth().currentUser;
+                if (!user) {
+                    window.location.href = '/login/';
+                    return;
+                }
+                const idToken = await user.getIdToken();
+                
                 const subjectFilter = document.getElementById('subjectFilter').value;
                 const response = await fetch(`/fetch_emails/?query=${encodeURIComponent(subjectFilter)}`, {
                     method: 'GET',
                     headers: {
                         'Accept': 'application/json',
                         'X-CSRFToken': csrfToken,
+                        'Authorization': `Bearer ${idToken}`
                     },
                     credentials: 'same-origin'
                 });
                 
                 if (!response.ok) {
+                    if (response.status === 401) {
+                        window.location.href = '/login/';
+                        return;
+                    }
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 
@@ -437,57 +477,14 @@
             document.getElementById('replyContent').value = '';
         });
 
-        // Generate AI Response
-        document.getElementById('generateResponse').addEventListener('click', async () => {
+        // Add logout functionality
+        document.getElementById('logoutButton').addEventListener('click', async () => {
             try {
-                const loadingIndicator = document.getElementById('emailLoading');
-                const generateButton = document.getElementById('generateResponse');
-                
-                // Show loading indicator and disable button
-                loadingIndicator.style.display = 'block';
-                generateButton.disabled = true;
-                
-                const response = await fetch('/email_assistant/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken,
-                    },
-                    body: JSON.stringify({
-                        email_id: currentEmailId,
-                        subject: document.getElementById('replySubject').value,
-                        from: document.getElementById('originalTo').textContent,
-                        to: document.getElementById('originalFrom').textContent,
-                        original_content: document.getElementById('emailContent').textContent,
-                        reply_content: document.getElementById('replyContent').value
-                    })
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                if (data.error) {
-                    throw new Error(data.error);
-                }
-                
-                // Parse the response and populate the fields
-                try {
-                    const responseData = JSON.parse(data.response);
-                    document.getElementById('replySubject').value = responseData.subject || '';
-                    document.getElementById('replyContent').value = responseData.body || '';
-                } catch (e) {
-                    console.error('Error parsing response:', e);
-                    document.getElementById('replyContent').value = data.response;
-                }
+                await firebase.auth().signOut();
+                window.location.href = '/login/';
             } catch (error) {
-                console.error('Error generating response:', error);
-                alert('Failed to generate response. Please try again.');
-            } finally {
-                // Hide loading indicator and enable button
-                loadingIndicator.style.display = 'none';
-                generateButton.disabled = false;
+                console.error('Error signing out:', error);
+                alert('Error signing out. Please try again.');
             }
         });
     </script>

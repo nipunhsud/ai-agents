@@ -5,6 +5,9 @@ import yaml
 import json
 from pathlib import Path
 import platform
+import pickle
+from django.contrib.auth.models import User
+from .models import GmailToken
 
 from dotenv import load_dotenv
 from langgraph.graph import END
@@ -25,7 +28,6 @@ from langchain_community.tools.google_finance import GoogleFinanceQueryRun
 from langchain_community.utilities.google_finance import GoogleFinanceAPIWrapper
 from langchain_google_community import GmailToolkit
 import os
-import pickle
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
@@ -48,33 +50,41 @@ chat = ChatOpenAI(
     model_name="gpt-4"  # You can also use "gpt-4" if you have access
 )
 
-def authenticate_gmail_api():
+def authenticate_gmail_api(user):
+    """
+    Authenticate Gmail API for a specific user.
+    
+    Args:
+        user: Django User object
+        
+    Returns:
+        Gmail API service object
+    """
     creds = None
-
-    # if os.path.exists("token.json"):
-    #     creds = Credentials.from_authorized_user_file("token.json", SCOPES)
-    # Check if token.pickle exists for saved credentials
-    if os.path.exists("token.pickle"):
-        with open("token.pickle", "rb") as token:
-            creds = pickle.load(token)
-            
+    
+    # Try to get existing token from database
+    try:
+        gmail_token = GmailToken.objects.get(user=user)
+        creds = pickle.loads(gmail_token.token_data)
+    except GmailToken.DoesNotExist:
+        pass
+        
     # If no valid credentials, initiate manual sign-in
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-           creds = InstalledAppFlow.from_client_secrets_file(
-          "credentials.json", SCOPES
+            flow = InstalledAppFlow.from_client_secrets_file(
+                "client_secret.json", SCOPES
+            )
+            creds = flow.run_local_server(port=0)
+            
+        # Save or update the credentials in the database
+        token_data = pickle.dumps(creds)
+        GmailToken.objects.update_or_create(
+            user=user,
+            defaults={'token_data': token_data}
         )
-        browser_path = '/opt/render/project/.render/chrome/opt/google/chrome'
-        # Register the browser
-        webbrowser.register('my_browser', None, webbrowser.BackgroundBrowser(browser_path))
-
-        # Open a URL using the registered browser
-        webbrowser.get('my_browser').open(creds.authorization_url())
-        # Save the credentials for future use
-        with open("token.pickle", "wb") as token:
-            pickle.dump(creds, token)
             
     return build('gmail', 'v1', credentials=creds)
 

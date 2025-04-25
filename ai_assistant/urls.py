@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from agents.views import GetCSRFToken, RAGAssistantView, StripeWebhookView, StripeCheckoutView, GmailFetchView  
+from agents.views import GetCSRFToken, RAGAssistantView, StripeWebhookView, StripeCheckoutView, GmailFetchView, login_page, login  
 from agents import views
 from slack_agent.views import test,add_slack_token,handle_message,send_messages,slack_success_view
 from code_reviewer_agent.views import code_reviewer_view,github_webhook,github_keys_form,submit_keys,success_view
@@ -16,7 +16,8 @@ urlpatterns = [
     path('upload/', views.UploadView.as_view(), name='upload_document'),
     path('uploads/', views.upload_document, name='upload_document'),
     path('summary/<int:document_id>/', views.custom_summary, name='custom_summary'),
-    path('login/', auth_views.LoginView.as_view(), name='login'),
+    path('login/', login_page, name='login_page'),
+    path('login/', login, name='login'),
     path('agent/', views.AgentView.as_view(), name='agent'),
     path('react/', views.react_page, name='react_page'), 
     path('real_estate/', views.real_estate_page, name='real_estate_page'), 

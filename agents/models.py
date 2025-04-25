@@ -26,4 +26,13 @@ class Document(models.Model):
     summary = models.TextField(null=True, blank=True)
 
     def __str__(self):
-        return f"Document {self.id} - {self.file.name}"  
+        return f"Document {self.id} - {self.file.name}"
+
+class GmailToken(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    token_data = models.BinaryField()  # Store pickled credentials
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Gmail Token for {self.user.email}"  

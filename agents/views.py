@@ -26,6 +26,8 @@ from simplegmail import Gmail
 from simplegmail.query import construct_query
 from email.mime.text import MIMEText
 import base64
+from django.contrib.auth import login
+from django.contrib.auth.models import User
 
 from .agent import Agent
 from .models import Message
@@ -36,7 +38,7 @@ from .gift_agent import gift_prediction
 from .document_processor import DocumentProcessor
 from .technical_writer import TechnicalWriter, DocumentType, OutputFormat
 from .assistant import Assistant
-from .email_assistant import email_generator
+from .email_assistant import email_generator, authenticate_gmail_api, list_messages, get_message
 from .stock_assistant import stock_generator
 from .rental_assistant import rental_generator
 from .slack import slack_generator
@@ -61,7 +63,15 @@ def query_page(request):
 @ensure_csrf_cookie
 def email_assistant_page(request):
     try:
-        return render(request, 'chat/email_writer.html')
+        context = {
+            'FIREBASE_API_KEY': 'AIzaSyBXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
+            'FIREBASE_AUTH_DOMAIN': 'purnam-442622.firebaseapp.com',
+            'FIREBASE_PROJECT_ID': 'purnam-442622',
+            'FIREBASE_STORAGE_BUCKET': 'purnam-442622.appspot.com',
+            'FIREBASE_MESSAGING_SENDER_ID': '986789349604',
+            'FIREBASE_APP_ID': '1:986789349604:web:XXXXXXXXXXXXXXXXXXXXXXXX'
+        }
+        return render(request, 'chat/email_writer.html', context)
     except Exception as e:
         logger.error(f"Error rendering react page: {str(e)}")
         return JsonResponse({'error': str(e)}, status=500)
@@ -1034,14 +1044,26 @@ class PublicBuyStocksView(View):
             }, status=500)
 
 @method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(firebase_auth_required, name='dispatch')
 class GmailFetchView(View):
     def get(self, request):
         try:
             # Get query parameters
             query = request.GET.get('query', '')
             
-            # Initialize Gmail client
-            gmail = Gmail()
+            # Get user from Firebase auth
+            user_id = request.firebase_user['uid']
+            user_email = request.firebase_user.get('email')
+            
+            if not user_email:
+                return JsonResponse({
+                    'error': 'User email not found in Firebase token'
+                }, status=401)
+            
+            # Get Gmail service for the current user
+            service = authenticate_gmail_api(request.user)
+            
+            # Construct query parameters
             query_params = {}
             
             # If query exists, use it for filtering
@@ -1050,37 +1072,48 @@ class GmailFetchView(View):
             else:
                 # If no query, only show emails from past day
                 query_params["newer_than"] = (1, "day")
-            # Fetch messages
-            messages = gmail.get_messages(
-                query=construct_query(query_params)
-            )
-            print(messages)
+                
+            # Fetch messages using the Gmail API
+            messages = list_messages(service, query=construct_query(query_params))
+            
+            if not messages:
+                return JsonResponse({
+                    'emails': [],
+                    'count': 0
+                })
+            
             # Format response
             emails = []
             for message in messages:
-                email_data = {
-                    'id': message.id,
-                    'subject': message.subject,
-                    'sender': message.sender,
-                    'recipient': message.recipient,
-                    'date': message.date,
-                    'snippet': message.snippet,
-                    'body_plain': message.plain,
-                    'body_html': message.html,
-                    'thread_id': message.thread_id,
-                }
-                
-                # Add attachment info if present
-                # if message.attachments:
-                #     email_data['attachments'] = [
-                #         {
-                #             'filename': att.filename,
-                #             'size': att.size,
-                #             'mime_type': att.mime_type
-                #         } for att in message.attachments
-                #     ]
-                
-                emails.append(email_data)
+                message_data = get_message(service, message['id'])
+                if message_data:
+                    # Extract headers
+                    headers = message_data['payload']['headers']
+                    subject = next((h['value'] for h in headers if h['name'].lower() == 'subject'), 'No Subject')
+                    sender = next((h['value'] for h in headers if h['name'].lower() == 'from'), 'No Sender')
+                    recipient = next((h['value'] for h in headers if h['name'].lower() == 'to'), 'No Recipient')
+                    
+                    # Get message body
+                    body = ''
+                    if 'parts' in message_data['payload']:
+                        for part in message_data['payload']['parts']:
+                            if part['mimeType'] == 'text/plain':
+                                body = base64.urlsafe_b64decode(part['body']['data']).decode()
+                                break
+                    elif 'body' in message_data['payload']:
+                        body = base64.urlsafe_b64decode(message_data['payload']['body']['data']).decode()
+                    
+                    email_data = {
+                        'id': message['id'],
+                        'subject': subject,
+                        'sender': sender,
+                        'recipient': recipient,
+                        'date': message_data['internalDate'],
+                        'snippet': message_data.get('snippet', ''),
+                        'body_plain': body,
+                        'thread_id': message_data['threadId'],
+                    }
+                    emails.append(email_data)
 
             return JsonResponse({
                 'emails': emails,
@@ -1141,4 +1174,64 @@ def send_reply(request):
     except Exception as e:
         logger.error(f"Error sending reply: {str(e)}", exc_info=True)
         return JsonResponse({'error': str(e)}, status=500)
+    
+@ensure_csrf_cookie
+def login_page(request):
+    try:
+        context = {
+            'FIREBASE_API_KEY': 'AIzaSyAte-xVLE3dIVPAJNbc8qhSf_55q9vCzpM',
+            'FIREBASE_AUTH_DOMAIN': 'purnam-442622.firebaseapp.com',
+            'FIREBASE_PROJECT_ID': 'purnam-442622',
+            'FIREBASE_STORAGE_BUCKET': 'purnam-442622.appspot.com',
+            'FIREBASE_MESSAGING_SENDER_ID': '986789349604',
+            'FIREBASE_APP_ID': '1:608420925602:web:1306472621d2510df647fb'
+        }
+        return render(request, 'chat/login.html', context)
+    except Exception as e:
+        logger.error(f"Error rendering login page: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+def login(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            id_token = data.get('idToken')
+            
+            if not id_token:
+                return JsonResponse({'error': 'No ID token provided'}, status=400)
+            
+            # Verify the ID token
+            decoded_token = auth.verify_id_token(id_token)
+            uid = decoded_token['uid']
+            
+            # Get user info
+            user = auth.get_user(uid)
+            
+            # Create or update user in Django
+            user_obj, created = User.objects.get_or_create(
+                username=uid,
+                defaults={
+                    'email': user.email,
+                    'first_name': user.display_name or '',
+                }
+            )
+            
+            # Login the user
+            login(request, user_obj)
+            
+            return JsonResponse({
+                'success': True,
+                'user': {
+                    'uid': uid,
+                    'email': user.email,
+                    'displayName': user.display_name
+                }
+            })
+            
+        except Exception as e:
+            logger.error(f"Login error: {str(e)}", exc_info=True)
+            return JsonResponse({'error': str(e)}, status=500)
+    
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
     

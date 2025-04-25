@@ -306,7 +306,7 @@
             document.getElementById('replySection').style.display = 'block';
             document.getElementById('originalSubject').textContent = subject;
             document.getElementById('originalFrom').textContent = `From: ${from}`;
-            document.getElementById('originalTo').textContent = `To: ${to}`;
+            document.getElementById('originalTo').textContent = to ? `To: ${to}` : 'To: No Recipient';
             document.getElementById('originalContent').innerHTML = `<p>${content}</p>`;
             document.getElementById('replyContent').value = '';
         }
@@ -322,7 +322,8 @@
                 subject: document.getElementById('originalSubject').textContent,
                 from: document.getElementById('originalFrom').textContent.replace('From: ', ''),
                 original_content: document.querySelector('.email-content p').textContent.trim(),
-                to: document.getElementById('originalTo')?.textContent.replace('To: ', '') || ''
+                to: document.getElementById('originalTo')?.textContent.replace('To: ', '') || '',
+                reply_content: document.getElementById('replyContent').value
             };
             
             try {
@@ -434,6 +435,60 @@
             document.getElementById('originalTo').textContent = '';
             document.getElementById('originalContent').innerHTML = '';
             document.getElementById('replyContent').value = '';
+        });
+
+        // Generate AI Response
+        document.getElementById('generateResponse').addEventListener('click', async () => {
+            try {
+                const loadingIndicator = document.getElementById('emailLoading');
+                const generateButton = document.getElementById('generateResponse');
+                
+                // Show loading indicator and disable button
+                loadingIndicator.style.display = 'block';
+                generateButton.disabled = true;
+                
+                const response = await fetch('/email_assistant/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                    },
+                    body: JSON.stringify({
+                        email_id: currentEmailId,
+                        subject: document.getElementById('replySubject').value,
+                        from: document.getElementById('originalTo').textContent,
+                        to: document.getElementById('originalFrom').textContent,
+                        original_content: document.getElementById('emailContent').textContent,
+                        reply_content: document.getElementById('replyContent').value
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                // Parse the response and populate the fields
+                try {
+                    const responseData = JSON.parse(data.response);
+                    document.getElementById('replySubject').value = responseData.subject || '';
+                    document.getElementById('replyContent').value = responseData.body || '';
+                } catch (e) {
+                    console.error('Error parsing response:', e);
+                    document.getElementById('replyContent').value = data.response;
+                }
+            } catch (error) {
+                console.error('Error generating response:', error);
+                alert('Failed to generate response. Please try again.');
+            } finally {
+                // Hide loading indicator and enable button
+                loadingIndicator.style.display = 'none';
+                generateButton.disabled = false;
+            }
         });
     </script>
 </body>

@@ -434,7 +434,8 @@ class EmailAssistantView(View):
                 subject=data.get('subject', ''),
                 from_email=data.get('from', ''),
                 to_email=data.get('to', ''),
-                original_content=data.get('original_content', '')
+                original_content=data.get('original_content', ''),
+                reply_content=data.get('reply_content', '')
             )
             return JsonResponse({'response': response})
         except Exception as e:
@@ -468,11 +469,18 @@ def fetch_emails(request):
             # Format response
             emails = []
             for message in messages:
+                # Extract recipient from headers
+                recipient = None
+                for header in message.headers:
+                    if header.name.lower() == 'to':
+                        recipient = header.value
+                        break
+                
                 email_data = {
                     'id': message.id,
                     'subject': message.subject,
                     'sender': message.sender,
-                    'recipient': message.recipient,
+                    'recipient': recipient or 'No Recipient',
                     'date': message.date,
                     'snippet': message.snippet,
                     'body_plain': message.plain,
@@ -603,13 +611,19 @@ def email_assistant_view(request):
             from_email = data.get('from', '')
             original_content = data.get('original_content', '')
             to_email = data.get('to', '')
+            reply_content = data.get('reply_content', '')
 
-            
             if not original_content:
                 return JsonResponse({'error': 'Input cannot be empty.'})
 
-            # Generate response using your email assistant
-            response = email_generator(subject, from_email, to_email, original_content)
+            # Generate response using your email assistant with reply content
+            response = email_generator(
+                subject=subject,
+                from_email=from_email,
+                to_email=to_email,
+                original_content=original_content,
+                reply_content=reply_content
+            )
             
             return JsonResponse({'response': response})
 

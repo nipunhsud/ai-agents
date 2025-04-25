@@ -268,7 +268,7 @@ model = ChatOpenAI(model="gpt-4o")
 abot = EmailAssistant()
 
 
-def email_generator(subject, from_email, to_email, original_content):
+def email_generator(subject, from_email, to_email, original_content, reply_content):
     # Combine email context for AI processing
     email_context = f"""
     Subject: {subject}
@@ -277,7 +277,7 @@ def email_generator(subject, from_email, to_email, original_content):
     Content: {original_content}
     """
     print("Email Context:", email_context)
-    messages = [HumanMessage(content="Following is the email content: "+str(email_context)+".  Craft a thoughtful response based on the email context provided. Always return subject and body easy to parse by the frontend.")]
+    messages = [HumanMessage(content="Following is the email content: "+str(email_context)+". And this is the users prompt:"+reply_content+" Craft a thoughtful response based on the email context provided. Always return subject and body easy to parse by the frontend.")]
     result = abot.graph.invoke({"messages": messages})
     print("Raw Response:", result['messages'][-1].content)
     

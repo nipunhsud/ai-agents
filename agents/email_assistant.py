@@ -78,8 +78,12 @@ def authenticate_gmail_api(user):
     Returns:
         Gmail API service object
     """
-    # Setup Chrome for headless operation
-    setup_chrome()
+    # Check if running locally
+    is_local = os.getenv('APP_ENV', 'local') == 'local'
+    
+    if not is_local:
+        # Setup Chrome for headless operation on non-local environment
+        setup_chrome()
     
     creds = None
     
@@ -98,8 +102,16 @@ def authenticate_gmail_api(user):
             flow = InstalledAppFlow.from_client_secrets_file(
                 "client_secret.json", SCOPES
             )
-            # Use headless browser for authentication
-            creds = flow.run_local_server(port=0, browser=webbrowser.get('chrome'))
+            try:
+                if is_local:
+                    # Use Chrome browser for local development
+                    creds = flow.run_local_server(port=0, browser=webbrowser.get('chrome'))
+                else:
+                    # On Render, use a different approach without browser
+                    creds = flow.run_local_server(port=0)
+            except webbrowser.Error:
+                # Fallback to no browser if Chrome is not available
+                creds = flow.run_local_server(port=0)
             
         # Save or update the credentials in the database
         token_data = pickle.dumps(creds)

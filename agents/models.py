@@ -35,4 +35,13 @@ class GmailToken(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"Gmail Token for {self.user.email}"  
+        return f"Gmail Token for {self.user.email}"
+
+class OAuthSession(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    session_key = models.CharField(max_length=40)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"OAuth Session for {self.user.email}"  

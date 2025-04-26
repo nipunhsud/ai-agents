@@ -1315,12 +1315,21 @@ class GmailAuthView(View):
             # Store user info in session for callback
             request.session['firebase_user_id'] = user_id
             request.session['firebase_user_email'] = user_email
+            request.session.save()  # Explicitly save the session
             
             # Get the authorization URL
-            auth_data = get_gmail_auth_url(request)
+            auth_url, state = get_auth_url()
+            
+            # Store the state in the session
+            request.session['oauth_state'] = state
+            request.session.save()  # Explicitly save the session
             
             # Return the authorization URL
-            return auth_data
+            return JsonResponse({
+                'auth_url': auth_url,
+                'redirect_uri': 'http://localhost:8000/gmail/callback/' if os.getenv('APP_ENV', 'local') == 'local' else 'https://www.backend.purnam.ai/gmail/callback/'
+            })
+            
         except Exception as e:
             return JsonResponse({
                 'error': 'Failed to initiate Gmail authentication',
@@ -1374,8 +1383,11 @@ class GmailCallbackView(View):
             code = request.GET.get('code')
             state = request.GET.get('state')
             
+            print(f"Received callback with code: {code[:10]}... and state: {state}") # Debug print
+            
             # Verify state matches what we stored
             if state != request.session.get('oauth_state'):
+                print(f"State mismatch. Received: {state}, Expected: {request.session.get('oauth_state')}") # Debug print
                 return JsonResponse({
                     'error': 'Invalid state parameter'
                 }, status=400)
@@ -1394,7 +1406,10 @@ class GmailCallbackView(View):
                 user_email = request.session.get('firebase_user_email')
                 
                 if not user_id or not user_email:
+                    print("No user info in session") # Debug print
                     return redirect('/login/')
+            
+            print(f"Processing callback for user: {user_email}") # Debug print
             
             # Get or create Django user
             user_obj, created = User.objects.get_or_create(
@@ -1406,12 +1421,14 @@ class GmailCallbackView(View):
             
             # Exchange code for token
             token_dict = exchange_code_for_token(code)
+            print(f"Got token dict: {token_dict.keys()}") # Debug print
             
             # Save the credentials
             GmailToken.objects.update_or_create(
                 user=user_obj,
                 defaults={'token_data': pickle.dumps(token_dict)}
             )
+            print("Saved token to database") # Debug print
             
             # Clear session data
             for key in ['oauth_state', 'firebase_user_id', 'firebase_user_email']:
@@ -1422,6 +1439,8 @@ class GmailCallbackView(View):
             return_url = request.session.get('return_url', '/email_assistant/')
             if 'return_url' in request.session:
                 del request.session['return_url']
+            
+            print(f"Redirecting to: {return_url}") # Debug print
             
             # Check if this is an API request
             if request.headers.get('Accept') == 'application/json':
@@ -1442,4 +1461,50 @@ class GmailCallbackView(View):
                 }, status=500)
             # For browser requests, redirect to error page
             return redirect('/email_assistant/?error=' + str(e))
+
+@method_decorator(firebase_auth_required, name='dispatch')
+class GmailSessionView(View):
+    def get(self, request):
+        """
+        Check if the user has a valid Gmail session.
+        """
+        try:
+            # Get Firebase user info
+            user_id = request.firebase_user['uid']
+            user_email = request.firebase_user.get('email')
+            
+            if not user_email:
+                return JsonResponse({
+                    'error': 'User email not found in Firebase token'
+                }, status=401)
+            
+            # Get Django user
+            try:
+                user_obj = User.objects.get(username=user_id)
+            except User.DoesNotExist:
+                return JsonResponse({
+                    'is_valid': False
+                })
+            
+            # Check if GmailToken exists
+            try:
+                gmail_token = GmailToken.objects.get(user=user_obj)
+                # Try to load and validate the token
+                token_data = pickle.loads(gmail_token.token_data)
+                if isinstance(token_data, dict) and 'token' in token_data:
+                    return JsonResponse({
+                        'is_valid': True
+                    })
+            except GmailToken.DoesNotExist:
+                pass
+            
+            return JsonResponse({
+                'is_valid': False
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'error': 'Failed to check Gmail session',
+                'detail': str(e)
+            }, status=500)
     

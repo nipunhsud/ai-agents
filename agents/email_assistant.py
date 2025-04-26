@@ -268,9 +268,25 @@ def authenticate_gmail_api(user):
             
             # Store the state in the session
             from django.contrib.sessions.backends.db import SessionStore
+            from django.contrib.sessions.models import Session
+            from django.utils import timezone
+            from .models import OAuthSession
+            
+            # Create a new session
             session = SessionStore()
+            session.create()
+            
+            # Store the state and user info
             session['oauth_state'] = state
+            session['user_id'] = user.id
+            session['user_email'] = user.email
             session.save()
+            
+            # Store the session key
+            OAuthSession.objects.update_or_create(
+                user=user,
+                defaults={'session_key': session.session_key}
+            )
             
             # Return None to indicate OAuth is needed
             return None

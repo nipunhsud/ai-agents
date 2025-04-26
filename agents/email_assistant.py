@@ -63,7 +63,11 @@ def setup_chrome():
             if os.path.exists(chrome_bin):
                 os.environ['CHROME_BIN'] = chrome_bin
             else:
-                raise FileNotFoundError("Chrome binary not found")
+                # Install Chrome if not found
+                subprocess.run(['apt-get', 'update'], check=True)
+                subprocess.run(['apt-get', 'install', '-y', 'google-chrome-stable'], check=True)
+                # Set Chrome binary path
+                os.environ['CHROME_BIN'] = '/usr/bin/google-chrome'
     except Exception as e:
         print(f"Error setting up Chrome: {e}")
         raise
@@ -107,17 +111,19 @@ def authenticate_gmail_api(user):
                     # Use Chrome browser for local development
                     creds = flow.run_local_server(port=0, browser=webbrowser.get('chrome'))
                 else:
-                    # On Render, use a different approach without browser
-                    creds = flow.run_local_server(port=0)
-            except webbrowser.Error:
-                # Fallback to no browser if Chrome is not available
-                creds = flow.run_local_server(port=0)
+                    # On Render, use console flow which provides a URL for manual authentication
+                    auth_url, _ = flow.authorization_url()
+                    print(f"Please visit this URL to authorize the application: {auth_url}")
+                    code = input("Enter the authorization code: ")
+                    creds = flow.fetch_token(code=code)
+            except Exception as e:
+                print(f"Error during authentication: {e}")
+                raise
             
         # Save or update the credentials in the database
-        token_data = pickle.dumps(creds)
         GmailToken.objects.update_or_create(
             user=user,
-            defaults={'token_data': token_data}
+            defaults={'token_data': pickle.dumps(creds)}
         )
             
     return build('gmail', 'v1', credentials=creds)

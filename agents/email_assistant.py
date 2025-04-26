@@ -158,16 +158,24 @@ def list_messages(service, user_id='me', query=''):
         List of messages or None if service is None
     """
     if service is None:
+        print("Service is None in list_messages")
         return None
         
     try:
+        print(f"Fetching messages with query: {query}")
         response = service.users().messages().list(userId=user_id, q=query).execute()
+        print(f"Gmail API response: {response}")
+        
         messages = []
         if 'messages' in response:
             messages.extend(response['messages'])
+            print(f"Found {len(messages)} messages")
+        else:
+            print("No messages found in response")
+            
         return messages
     except Exception as error:
-        print(f'An error occurred: {error}')
+        print(f'Error in list_messages: {error}')
         return None
 
 def get_message(service, message_id, user_id='me'):
@@ -183,13 +191,16 @@ def get_message(service, message_id, user_id='me'):
         Message object or None if service is None
     """
     if service is None:
+        print("Service is None in get_message")
         return None
         
     try:
+        print(f"Fetching message with ID: {message_id}")
         message = service.users().messages().get(userId=user_id, id=message_id, format='full').execute()
+        print(f"Got message: {message.get('snippet', 'No snippet')}")
         return message
     except Exception as error:
-        print(f'An error occurred: {error}')
+        print(f'Error in get_message: {error}')
         return None
 
 def create_reply_message(service, message_id, reply_text, user_id='me'):
@@ -401,6 +412,29 @@ def email_generator(subject, from_email, to_email, original_content, reply_conte
     except Exception as e:
         print(f"Error parsing response: {e}")
         return result['messages'][-1].content  # Return raw content if parsing fails
+
+def construct_query(query_params):
+    """
+    Construct a Gmail API query string from parameters.
+    
+    Args:
+        query_params: Dictionary of query parameters
+        
+    Returns:
+        Query string for Gmail API
+    """
+    query_parts = []
+    
+    if 'subject' in query_params:
+        query_parts.append(f"subject:{query_params['subject']}")
+    
+    if 'newer_than' in query_params:
+        days, unit = query_params['newer_than']
+        query_parts.append(f"newer_than:{days}{unit}")
+    
+    query = ' '.join(query_parts)
+    print(f"Constructed query: {query}")
+    return query
 
 
 

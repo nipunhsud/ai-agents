@@ -243,8 +243,10 @@
     </div>
 
     <script>
-        // Update CSRF token retrieval to handle potential null value
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+        // Get CSRF token from the template
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        console.log('CSRF Token:', csrfToken); // Debug log
+
         let currentEmailId = null;
 
         // Fetch Emails
@@ -292,7 +294,12 @@
                     
                     // Get the auth URL
                     console.log('Fetching auth URL...'); // Debug log
-                    const authResponse = await fetch('/gmail/auth/');
+                    const authResponse = await fetch('/gmail/auth/', {
+                        headers: {
+                            'X-CSRFToken': csrfToken
+                        },
+                        credentials: 'same-origin'
+                    });
                     const authData = await authResponse.json();
                     console.log('Got auth URL:', authData); // Debug log
                     
@@ -380,33 +387,45 @@
             const loadingIndicator = document.getElementById('loadingIndicator');
             loadingIndicator.style.display = 'block';
             
-            // Get all relevant email information
-            const emailData = {
-                email_id: currentEmailId,
-                subject: document.getElementById('originalSubject').textContent,
-                from: document.getElementById('originalFrom').textContent.replace('From: ', ''),
-                original_content: document.querySelector('.email-content p').textContent.trim(),
-                to: document.getElementById('originalTo')?.textContent.replace('To: ', '') || '',
-                reply_content: document.getElementById('replyContent').value
-            };
-            
             try {
+                // Get all relevant email information
+                const emailData = {
+                    email_id: currentEmailId,
+                    subject: document.getElementById('originalSubject').textContent,
+                    from: document.getElementById('originalFrom').textContent.replace('From: ', ''),
+                    original_content: document.querySelector('.email-content p').textContent.trim(),
+                    to: document.getElementById('originalTo')?.textContent.replace('To: ', '') || '',
+                    reply_content: document.getElementById('replyContent').value
+                };
+                
+                console.log('Sending email data:', emailData); // Debug log
+                
                 const response = await fetch('/email_assistant/', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken,
+                        'Accept': 'application/json',
+                        'X-CSRFToken': csrfToken
                     },
+                    credentials: 'same-origin',
                     body: JSON.stringify(emailData)
                 });
                 
+                console.log('Got response:', response.status); // Debug log
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Error response:', errorText); // Debug log
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
                 const data = await response.json();
+                console.log('Response data:', data); // Debug log
+                
                 if (data.error) {
                     alert('Error: ' + data.error);
                     return;
                 }
-
-                console.log('Response data:', data); // Debug log
 
                 // Handle the response data
                 if (typeof data.response === 'string') {
@@ -520,8 +539,16 @@
             
             if (code && state) {
                 try {
+                    // Get CSRF token
+                    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                    console.log('Got CSRF token:', csrfToken); // Debug log
                     // Exchange the code for tokens
-                    const response = await fetch(`/gmail/callback/?code=${code}&state=${state}`);
+                    const response = await fetch(`/gmail/callback/?code=${code}&state=${state}`, {
+                        headers: {
+                            'X-CSRFToken': csrfToken
+                        },
+                        credentials: 'same-origin'
+                    });
                     const data = await response.json();
                     
                     if (data.error) {

@@ -432,25 +432,42 @@ class AssistantView(View):
         # Return the response as JSON
         return JsonResponse({'response': "ok"})
 
-@method_decorator(ensure_csrf_cookie, name='dispatch')
-@method_decorator(csrf_protect, name='dispatch')
+@method_decorator(csrf_exempt, name='dispatch')
 class EmailAssistantView(View):
     def get(self, request):
         return render(request, 'chat/email_writer.html')
 
     def post(self, request):
         try:
+            # Parse JSON data from request body
             data = json.loads(request.body)
+            
+            # Extract email information
+            email_id = data.get('email_id', '')
+            subject = data.get('subject', '')
+            from_email = data.get('from', '')
+            original_content = data.get('original_content', '')
+            to_email = data.get('to', '')
+            reply_content = data.get('reply_content', '')
+
+            if not original_content:
+                return JsonResponse({'error': 'Input cannot be empty.'})
+
+            # Generate response using your email assistant with reply content
             response = email_generator(
-                subject=data.get('subject', ''),
-                from_email=data.get('from', ''),
-                to_email=data.get('to', ''),
-                original_content=data.get('original_content', ''),
-                reply_content=data.get('reply_content', '')
+                subject=subject,
+                from_email=from_email,
+                to_email=to_email,
+                original_content=original_content,
+                reply_content=reply_content
             )
-            return JsonResponse({'response': response})
+            
+            return JsonResponse({'response': response}, content_type='application/json')
+
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON data'}, status=400, content_type='application/json')
         except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
+            return JsonResponse({'error': str(e)}, status=500, content_type='application/json')
 
 @login_required
 def fetch_emails(request):
@@ -479,13 +496,19 @@ def fetch_emails(request):
         if query:
             query_params["subject"] = query
         else:
-            query_params["newer_than"] = (1, "day")
+            # Default to last 7 days if no query
+            query_params["newer_than"] = (7, "d")
+            
+        # Construct the query string
+        query_string = construct_query(query_params)
+        print(f"Using query string: {query_string}") # Debug print
             
         # Fetch messages using the Gmail API
-        messages = list_messages(service, query=construct_query(query_params))
+        messages = list_messages(service, query=query_string)
         print(f"Found {len(messages) if messages else 0} messages") # Debug print
         
         if not messages:
+            print("No messages found, returning empty list") # Debug print
             return JsonResponse({
                 'emails': [],
                 'count': 0
@@ -538,7 +561,7 @@ def fetch_emails(request):
         }, status=500)
 
 @method_decorator(firebase_auth_required, name='dispatch')
-@method_decorator(csrf_protect, name='dispatch')        
+@method_decorator(csrf_protect, name='dispatch')
 class StockAssistantView(View):
     def post(self, request, stock_name=None):
         # Use stock_name from URL if provided, otherwise get from POST data
@@ -638,6 +661,7 @@ def quant_analyst_page(request):
         logger.error(f"Error rendering react page: {str(e)}")
         return JsonResponse({'error': str(e)}, status=500)
 
+@csrf_exempt  # Temporarily disable CSRF for testing
 def email_assistant_view(request):
     if request.method == 'POST':
         try:
@@ -1350,13 +1374,19 @@ def fetch_emails(request):
         if query:
             query_params["subject"] = query
         else:
-            query_params["newer_than"] = (1, "day")
+            # Default to last 7 days if no query
+            query_params["newer_than"] = (7, "d")
+            
+        # Construct the query string
+        query_string = construct_query(query_params)
+        print(f"Using query string: {query_string}") # Debug print
             
         # Fetch messages using the Gmail API
-        messages = list_messages(service, query=construct_query(query_params))
+        messages = list_messages(service, query=query_string)
         print(f"Found {len(messages) if messages else 0} messages") # Debug print
         
         if not messages:
+            print("No messages found, returning empty list") # Debug print
             return JsonResponse({
                 'emails': [],
                 'count': 0

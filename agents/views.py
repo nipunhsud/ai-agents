@@ -34,6 +34,7 @@ from .agent import Agent
 from .models import Message
 from .models import Document
 from .models import Conversation
+from .models import GmailToken
 from .gift_agent import gift_prediction
 # from .email_assistant import get_emails
 from .document_processor import DocumentProcessor
@@ -469,96 +470,103 @@ class EmailAssistantView(View):
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500, content_type='application/json')
 
-@login_required
-def fetch_emails(request):
-    """
-    Fetch emails from Gmail.
-    """
-    try:
-        print("Starting fetch_emails request") # Debug print
-        service = authenticate_gmail_api(request.user)
-        print(f"Service object: {service}") # Debug print
-        
-        if service is None:
-            print("Service is None, initiating OAuth flow") # Debug print
-            # Need to initiate OAuth flow
+@method_decorator(firebase_auth_required, name='dispatch')
+class FetchEmailsView(View):
+    def get(self, request):
+        """
+        Fetch emails from Gmail.
+        """
+        try:
+            print("Starting fetch_emails request") # Debug print
+            print(f"User: {request.user.username}") # Debug print
+            print(f"Firebase user: {request.firebase_user}") # Debug print
+            
+            service = authenticate_gmail_api(request.user)
+            print(f"Service object: {service}") # Debug print
+            
+            if service is None:
+                print("Service is None, returning empty list") # Debug print
+                return JsonResponse({
+                    'emails': [],
+                    'count': 0
+                })
+                
+            # Get query parameters
+            query = request.GET.get('query', '')
+            print(f"Fetching emails with query: {query}") # Debug print
+            
+            # Construct query parameters
+            query_params = {}
+            if query:
+                query_params["subject"] = query
+            else:
+                # Default to last 7 days if no query
+                query_params["newer_than"] = (7, "d")
+                
+            # Construct the query string
+            query_string = construct_query(query_params)
+            print(f"Using query string: {query_string}") # Debug print
+                
+            # Fetch messages using the Gmail API
+            messages = list_messages(service, query=query_string)
+            print(f"Found {len(messages) if messages else 0} messages") # Debug print
+            
+            if not messages:
+                print("No messages found, returning empty list") # Debug print
+                return JsonResponse({
+                    'emails': [],
+                    'count': 0
+                })
+            
+            # Format response
+            emails = []
+            for message in messages:
+                print(f"Processing message ID: {message['id']}") # Debug print
+                message_data = get_message(service, message['id'])
+                if message_data:
+                    # Extract headers
+                    headers = message_data['payload']['headers']
+                    subject = next((h['value'] for h in headers if h['name'].lower() == 'subject'), 'No Subject')
+                    sender = next((h['value'] for h in headers if h['name'].lower() == 'from'), 'No Sender')
+                    recipient = next((h['value'] for h in headers if h['name'].lower() == 'to'), 'No Recipient')
+                    
+                    # Get message body
+                    body = ''
+                    if 'parts' in message_data['payload']:
+                        for part in message_data['payload']['parts']:
+                            if part['mimeType'] == 'text/plain':
+                                body = base64.urlsafe_b64decode(part['body']['data']).decode()
+                                break
+                    elif 'body' in message_data['payload']:
+                        body = base64.urlsafe_b64decode(message_data['payload']['body']['data']).decode()
+                    
+                    email_data = {
+                        'id': message['id'],
+                        'subject': subject,
+                        'sender': sender,
+                        'recipient': recipient,
+                        'date': message_data['internalDate'],
+                        'snippet': message_data.get('snippet', ''),
+                        'body_plain': body,
+                        'thread_id': message_data['threadId'],
+                    }
+                    emails.append(email_data)
+                    print(f"Added email: {subject}") # Debug print
+            
+            print(f"Returning {len(emails)} emails") # Debug print
             return JsonResponse({
-                'error': 'Gmail authentication required',
-                'auth_required': True
+                'emails': emails,
+                'count': len(emails)
             })
             
-        # Get query parameters
-        query = request.GET.get('query', '')
-        print(f"Fetching emails with query: {query}") # Debug print
-        
-        # Construct query parameters
-        query_params = {}
-        if query:
-            query_params["subject"] = query
-        else:
-            # Default to last 7 days if no query
-            query_params["newer_than"] = (7, "d")
-            
-        # Construct the query string
-        query_string = construct_query(query_params)
-        print(f"Using query string: {query_string}") # Debug print
-            
-        # Fetch messages using the Gmail API
-        messages = list_messages(service, query=query_string)
-        print(f"Found {len(messages) if messages else 0} messages") # Debug print
-        
-        if not messages:
-            print("No messages found, returning empty list") # Debug print
+        except Exception as e:
+            print(f"Error in fetch_emails: {str(e)}") # Debug print
+            print(f"Error type: {type(e)}") # Debug print
+            print(f"Error details: {str(e)}") # Debug print
             return JsonResponse({
-                'emails': [],
-                'count': 0
-            })
-        
-        # Format response
-        emails = []
-        for message in messages:
-            message_data = get_message(service, message['id'])
-            if message_data:
-                # Extract headers
-                headers = message_data['payload']['headers']
-                subject = next((h['value'] for h in headers if h['name'].lower() == 'subject'), 'No Subject')
-                sender = next((h['value'] for h in headers if h['name'].lower() == 'from'), 'No Sender')
-                recipient = next((h['value'] for h in headers if h['name'].lower() == 'to'), 'No Recipient')
-                
-                # Get message body
-                body = ''
-                if 'parts' in message_data['payload']:
-                    for part in message_data['payload']['parts']:
-                        if part['mimeType'] == 'text/plain':
-                            body = base64.urlsafe_b64decode(part['body']['data']).decode()
-                            break
-                elif 'body' in message_data['payload']:
-                    body = base64.urlsafe_b64decode(message_data['payload']['body']['data']).decode()
-                
-                email_data = {
-                    'id': message['id'],
-                    'subject': subject,
-                    'sender': sender,
-                    'recipient': recipient,
-                    'date': message_data['internalDate'],
-                    'snippet': message_data.get('snippet', ''),
-                    'body_plain': body,
-                    'thread_id': message_data['threadId'],
-                }
-                emails.append(email_data)
-        
-        print(f"Returning {len(emails)} emails") # Debug print
-        return JsonResponse({
-            'emails': emails,
-            'count': len(emails)
-        })
-        
-    except Exception as e:
-        print(f"Error in fetch_emails: {str(e)}") # Debug print
-        return JsonResponse({
-            'error': 'Failed to fetch emails',
-            'detail': str(e)
-        }, status=500)
+                'error': 'Failed to fetch emails',
+                'detail': str(e)
+            }, status=500)
 
 @method_decorator(firebase_auth_required, name='dispatch')
 @method_decorator(csrf_protect, name='dispatch')
@@ -1288,153 +1296,136 @@ def login(request):
     
     return JsonResponse({'error': 'Method not allowed'}, status=405)
 
-@login_required
-def initiate_gmail_auth(request):
-    """
-    Initiate the Gmail OAuth flow.
-    """
-    try:
-        # Get the authorization URL
-        auth_url, state = get_auth_url()
-        
-        # Store state in session for verification
-        request.session['oauth_state'] = state
-        
-        # Return the authorization URL
-        return JsonResponse({
-            'auth_url': auth_url
-        })
-    except Exception as e:
-        return JsonResponse({
-            'error': 'Failed to initiate Gmail authentication',
-            'detail': str(e)
-        }, status=500)
-
-@login_required
-def gmail_oauth_callback(request):
-    """
-    Handle the OAuth callback from Gmail.
-    """
-    try:
-        # Get the authorization code from the request
-        code = request.GET.get('code')
-        state = request.GET.get('state')
-        
-        # Verify state matches what we stored
-        if state != request.session.get('oauth_state'):
-            return JsonResponse({
-                'error': 'Invalid state parameter'
-            }, status=400)
-        
-        # Exchange code for token
-        creds = exchange_code_for_token(code)
-        
-        # Save the credentials
-        GmailToken.objects.update_or_create(
-            user=request.user,
-            defaults={'token_data': pickle.dumps(creds)}
-        )
-        
-        # Clear the state from session
-        del request.session['oauth_state']
-        
-        return JsonResponse({
-            'message': 'Gmail authentication successful'
-        })
-    except Exception as e:
-        return JsonResponse({
-            'error': 'Failed to complete Gmail authentication',
-            'detail': str(e)
-        }, status=500)
-
-@login_required
-def fetch_emails(request):
-    """
-    Fetch emails from Gmail.
-    """
-    try:
-        print("Starting fetch_emails request") # Debug print
-        service = authenticate_gmail_api(request.user)
-        print(f"Service object: {service}") # Debug print
-        
-        if service is None:
-            print("Service is None, initiating OAuth flow") # Debug print
-            # Need to initiate OAuth flow
-            return JsonResponse({
-                'error': 'Gmail authentication required',
-                'auth_required': True
-            })
+@method_decorator(firebase_auth_required, name='dispatch')
+class GmailAuthView(View):
+    def get(self, request):
+        """
+        Initiate the Gmail OAuth flow.
+        """
+        try:
+            print("Starting Gmail OAuth flow") # Debug print
             
-        # Get query parameters
-        query = request.GET.get('query', '')
-        print(f"Fetching emails with query: {query}") # Debug print
-        
-        # Construct query parameters
-        query_params = {}
-        if query:
-            query_params["subject"] = query
-        else:
-            # Default to last 7 days if no query
-            query_params["newer_than"] = (7, "d")
+            # Get Firebase user info
+            user_id = request.firebase_user['uid']
+            user_email = request.firebase_user.get('email')
             
-        # Construct the query string
-        query_string = construct_query(query_params)
-        print(f"Using query string: {query_string}") # Debug print
+            if not user_email:
+                return JsonResponse({
+                    'error': 'User email not found in Firebase token'
+                }, status=401)
             
-        # Fetch messages using the Gmail API
-        messages = list_messages(service, query=query_string)
-        print(f"Found {len(messages) if messages else 0} messages") # Debug print
-        
-        if not messages:
-            print("No messages found, returning empty list") # Debug print
-            return JsonResponse({
-                'emails': [],
-                'count': 0
-            })
-        
-        # Format response
-        emails = []
-        for message in messages:
-            message_data = get_message(service, message['id'])
-            if message_data:
-                # Extract headers
-                headers = message_data['payload']['headers']
-                subject = next((h['value'] for h in headers if h['name'].lower() == 'subject'), 'No Subject')
-                sender = next((h['value'] for h in headers if h['name'].lower() == 'from'), 'No Sender')
-                recipient = next((h['value'] for h in headers if h['name'].lower() == 'to'), 'No Recipient')
-                
-                # Get message body
-                body = ''
-                if 'parts' in message_data['payload']:
-                    for part in message_data['payload']['parts']:
-                        if part['mimeType'] == 'text/plain':
-                            body = base64.urlsafe_b64decode(part['body']['data']).decode()
-                            break
-                elif 'body' in message_data['payload']:
-                    body = base64.urlsafe_b64decode(message_data['payload']['body']['data']).decode()
-                
-                email_data = {
-                    'id': message['id'],
-                    'subject': subject,
-                    'sender': sender,
-                    'recipient': recipient,
-                    'date': message_data['internalDate'],
-                    'snippet': message_data.get('snippet', ''),
-                    'body_plain': body,
-                    'thread_id': message_data['threadId'],
+            # Get or create Django user
+            user_obj, created = User.objects.get_or_create(
+                username=user_id,
+                defaults={
+                    'email': user_email,
                 }
-                emails.append(email_data)
-        
-        print(f"Returning {len(emails)} emails") # Debug print
-        return JsonResponse({
-            'emails': emails,
-            'count': len(emails)
-        })
-        
-    except Exception as e:
-        print(f"Error in fetch_emails: {str(e)}") # Debug print
-        return JsonResponse({
-            'error': 'Failed to fetch emails',
-            'detail': str(e)
-        }, status=500)
+            )
+            
+            # Store user info in session for callback
+            request.session['firebase_user_id'] = user_id
+            request.session['firebase_user_email'] = user_email
+            
+            # Get the authorization URL
+            auth_url, state = get_auth_url()
+            print(f"Got auth URL: {auth_url}") # Debug print
+            
+            # Store state in session for verification
+            request.session['oauth_state'] = state
+            print(f"Stored state in session: {state}") # Debug print
+            
+            # Store return URL in session
+            request.session['return_url'] = request.META.get('HTTP_REFERER', '/email_assistant/')
+            print(f"Stored return URL: {request.session['return_url']}") # Debug print
+            
+            # Return the authorization URL
+            return JsonResponse({
+                'auth_url': auth_url
+            })
+        except Exception as e:
+            print(f"Error initiating Gmail auth: {str(e)}") # Debug print
+            return JsonResponse({
+                'error': 'Failed to initiate Gmail authentication',
+                'detail': str(e)
+            }, status=500)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class GmailCallbackView(View):
+    def get(self, request):
+        """
+        Handle the OAuth callback from Gmail.
+        """
+        try:
+            # Get the authorization code from the request
+            code = request.GET.get('code')
+            state = request.GET.get('state')
+            
+            # Verify state matches what we stored
+            if state != request.session.get('oauth_state'):
+                return JsonResponse({
+                    'error': 'Invalid state parameter'
+                }, status=400)
+            
+            # Get user info from session or Firebase token
+            if request.headers.get('Authorization'):
+                # API request with Firebase token
+                auth_header = request.headers.get('Authorization')
+                token = auth_header.split('Bearer ')[1].strip()
+                decoded_token = auth.verify_id_token(token)
+                user_id = decoded_token['uid']
+                user_email = decoded_token.get('email')
+            else:
+                # Browser request - get user info from session
+                user_id = request.session.get('firebase_user_id')
+                user_email = request.session.get('firebase_user_email')
+                
+                if not user_id or not user_email:
+                    return redirect('/login/')
+            
+            # Get or create Django user
+            user_obj, created = User.objects.get_or_create(
+                username=user_id,
+                defaults={
+                    'email': user_email,
+                }
+            )
+            
+            # Exchange code for token
+            token_dict = exchange_code_for_token(code)
+            
+            # Save the credentials
+            GmailToken.objects.update_or_create(
+                user=user_obj,
+                defaults={'token_data': pickle.dumps(token_dict)}
+            )
+            
+            # Clear session data
+            for key in ['oauth_state', 'firebase_user_id', 'firebase_user_email']:
+                if key in request.session:
+                    del request.session[key]
+            
+            # Get the return URL
+            return_url = request.session.get('return_url', '/email_assistant/')
+            if 'return_url' in request.session:
+                del request.session['return_url']
+            
+            # Check if this is an API request
+            if request.headers.get('Accept') == 'application/json':
+                return JsonResponse({
+                    'success': True,
+                    'redirect_url': return_url
+                })
+            
+            # For browser requests, redirect directly
+            return redirect(return_url)
+            
+        except Exception as e:
+            print(f"Error in gmail_oauth_callback: {str(e)}") # Debug print
+            if request.headers.get('Accept') == 'application/json':
+                return JsonResponse({
+                    'error': 'Failed to complete Gmail authentication',
+                    'detail': str(e)
+                }, status=500)
+            # For browser requests, redirect to error page
+            return redirect('/email_assistant/?error=' + str(e))
     

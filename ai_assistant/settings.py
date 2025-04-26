@@ -169,3 +169,7 @@ SESSION_COOKIE_SECURE = True
 
 cred = credentials.Certificate('firebase-credentials.json')
 initialize_app(cred)
+
+# Initialize Firebase
+from agents.firebase_config import initialize_firebase
+initialize_firebase()

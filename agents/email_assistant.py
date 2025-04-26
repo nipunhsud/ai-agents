@@ -6,7 +6,15 @@ import json
 from pathlib import Path
 import platform
 import pickle
+import sys
+import os
 from django.contrib.auth.models import User
+from django.db import models
+
+# Add the project root directory to the Python path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Import GmailToken directly from the same directory
 from .models import GmailToken
 
 from dotenv import load_dotenv
@@ -37,11 +45,13 @@ import webbrowser
 from google.oauth2.credentials import Credentials
 from ai_assistant.utils import load_email_templates, save_email_template
 import smtplib
-from simplegmail import Gmail
-from simplegmail.query import construct_query
 import subprocess
 
-SCOPES = ['https://mail.google.com/']
+SCOPES = [
+    'https://mail.google.com/',
+    'https://www.googleapis.com/auth/gmail.settings.basic',
+    'https://www.googleapis.com/auth/gmail.modify'
+]
 tavily_tool = TavilySearchResults(max_results=4) #increased number of results
 _ = load_dotenv()
 
@@ -79,10 +89,35 @@ def get_auth_url():
     Returns:
         tuple: (auth_url, state) for OAuth flow
     """
-    flow = InstalledAppFlow.from_client_secrets_file(
-        "client_secret.json", SCOPES
-    )
-    return flow.authorization_url()
+    try:
+        print("Starting get_auth_url") # Debug print
+        
+        # Set the redirect URI based on environment
+        is_local = os.getenv('APP_ENV', 'local') == 'local'
+        redirect_uri = 'http://localhost:8000/gmail/callback/' if is_local else 'https://www.backend.purnam.ai/gmail/callback/'
+        print(f"Using redirect URI: {redirect_uri}") # Debug print
+        
+        # Create flow with redirect URI
+        flow = InstalledAppFlow.from_client_secrets_file(
+            "client_secret.json",
+            SCOPES,
+            redirect_uri=redirect_uri
+        )
+        print("Created flow object") # Debug print
+        
+        # Get the authorization URL
+        auth_url, state = flow.authorization_url(
+            access_type='offline',
+            include_granted_scopes='true',
+            prompt='consent'  # Force consent screen to ensure we get refresh token
+        )
+        print(f"Generated auth URL: {auth_url}") # Debug print
+        print(f"Generated state: {state}") # Debug print
+        
+        return auth_url, state
+    except Exception as e:
+        print(f"Error in get_auth_url: {str(e)}") # Debug print
+        raise
 
 def exchange_code_for_token(code):
     """
@@ -94,10 +129,49 @@ def exchange_code_for_token(code):
     Returns:
         Credentials object
     """
-    flow = InstalledAppFlow.from_client_secrets_file(
-        "client_secret.json", SCOPES
-    )
-    return flow.fetch_token(code=code)
+    try:
+        print("Starting exchange_code_for_token") # Debug print
+        
+        # Set the redirect URI based on environment
+        is_local = os.getenv('APP_ENV', 'local') == 'local'
+        redirect_uri = 'http://localhost:8000/gmail/callback/' if is_local else 'https://www.backend.purnam.ai/gmail/callback/'
+        print(f"Using redirect URI: {redirect_uri}") # Debug print
+        
+        # Create flow with redirect URI
+        flow = InstalledAppFlow.from_client_secrets_file(
+            "client_secret.json",
+            SCOPES,
+            redirect_uri=redirect_uri
+        )
+        print("Created flow object") # Debug print
+        
+        # Exchange the code for tokens
+        flow.fetch_token(
+            code=code,
+            client_id=flow.client_config['client_id'],
+            client_secret=flow.client_config['client_secret']
+        )
+        print("Successfully exchanged code for tokens") # Debug print
+        
+        # Get the credentials
+        creds = flow.credentials
+        print(f"Got credentials type: {type(creds)}") # Debug print
+        
+        # Convert to dictionary for storage
+        token_dict = {
+            'token': creds.token,
+            'refresh_token': creds.refresh_token,
+            'token_uri': creds.token_uri,
+            'client_id': creds.client_id,
+            'client_secret': creds.client_secret,
+            'scopes': creds.scopes
+        }
+        print("Created token dictionary") # Debug print
+        
+        return token_dict
+    except Exception as e:
+        print(f"Error in exchange_code_for_token: {str(e)}") # Debug print
+        raise
 
 def authenticate_gmail_api(user):
     """
@@ -111,6 +185,8 @@ def authenticate_gmail_api(user):
     """
     # Check if running locally
     is_local = os.getenv('APP_ENV', 'local') == 'local'
+    print(f"Environment: {'local' if is_local else 'production'}") # Debug print
+    print(f"User: {user.username}") # Debug print
     
     if not is_local:
         # Setup Chrome for headless operation on non-local environment
@@ -121,29 +197,75 @@ def authenticate_gmail_api(user):
     # Try to get existing token from database
     try:
         gmail_token = GmailToken.objects.get(user=user)
-        creds = pickle.loads(gmail_token.token_data)
-    except GmailToken.DoesNotExist:
-        pass
+        print("Found existing Gmail token") # Debug print
+        print(f"Token data type: {type(gmail_token.token_data)}") # Debug print
         
-    # If no valid credentials, initiate manual sign-in
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
+        # Convert memoryview to bytes if needed
+        if isinstance(gmail_token.token_data, memoryview):
+            token_data = gmail_token.token_data.tobytes()
+        else:
+            token_data = gmail_token.token_data
+            
+        # Load the token data
+        token_dict = pickle.loads(token_data)
+        print(f"Loaded token dict type: {type(token_dict)}") # Debug print
+        
+        # Convert to Credentials object
+        creds = Credentials(
+            token=token_dict.get('token'),
+            refresh_token=token_dict.get('refresh_token'),
+            token_uri=token_dict.get('token_uri'),
+            client_id=token_dict.get('client_id'),
+            client_secret=token_dict.get('client_secret'),
+            scopes=token_dict.get('scopes', SCOPES)
+        )
+        print(f"Created credentials type: {type(creds)}") # Debug print
+        
+        # Check if token needs refresh
+        if creds and creds.token:
             try:
+                # Try to refresh the token
                 creds.refresh(Request())
-            except Exception:
-                # If refresh fails, we need to re-authenticate
+                print("Token refreshed successfully") # Debug print
+                
+                # Save the refreshed token
+                token_dict = {
+                    'token': creds.token,
+                    'refresh_token': creds.refresh_token,
+                    'token_uri': creds.token_uri,
+                    'client_id': creds.client_id,
+                    'client_secret': creds.client_secret,
+                    'scopes': creds.scopes
+                }
+                
+                GmailToken.objects.update_or_create(
+                    user=user,
+                    defaults={'token_data': pickle.dumps(token_dict)}
+                )
+                print("Refreshed token saved to database") # Debug print
+            except Exception as e:
+                print(f"Error refreshing token: {e}") # Debug print
+                print(f"Error type: {type(e)}") # Debug print
+                print(f"Error details: {str(e)}") # Debug print
                 return None
         else:
-            # No valid credentials, need to authenticate
+            print("No valid token available") # Debug print
             return None
             
-        # Save or update the credentials in the database
-        GmailToken.objects.update_or_create(
-            user=user,
-            defaults={'token_data': pickle.dumps(creds)}
-        )
-            
-    return build('gmail', 'v1', credentials=creds)
+    except GmailToken.DoesNotExist:
+        print("No existing Gmail token found") # Debug print
+        return None
+        
+    print("Authentication successful, building Gmail service") # Debug print
+    try:
+        service = build('gmail', 'v1', credentials=creds)
+        print(f"Gmail service built successfully: {service}") # Debug print
+        return service
+    except Exception as e:
+        print(f"Error building Gmail service: {e}") # Debug print
+        print(f"Error type: {type(e)}") # Debug print
+        print(f"Error details: {str(e)}") # Debug print
+        return None
 
 def list_messages(service, user_id='me', query=''):
     """
@@ -163,19 +285,31 @@ def list_messages(service, user_id='me', query=''):
         
     try:
         print(f"Fetching messages with query: {query}")
-        response = service.users().messages().list(userId=user_id, q=query).execute()
+        print(f"Service object type: {type(service)}")
+        print(f"Service object: {service}")
+        
+        # Get the messages list
+        messages_list = service.users().messages()
+        print(f"Messages list object: {messages_list}")
+        
+        # Execute the list request
+        response = messages_list.list(userId=user_id, q=query).execute()
         print(f"Gmail API response: {response}")
         
         messages = []
         if 'messages' in response:
             messages.extend(response['messages'])
             print(f"Found {len(messages)} messages")
+            print(f"First message ID: {messages[0]['id'] if messages else 'No messages'}")
         else:
             print("No messages found in response")
+            print(f"Full response: {response}")
             
         return messages
     except Exception as error:
         print(f'Error in list_messages: {error}')
+        print(f'Error type: {type(error)}')
+        print(f'Error details: {str(error)}')
         return None
 
 def get_message(service, message_id, user_id='me'):
@@ -204,6 +338,22 @@ def get_message(service, message_id, user_id='me'):
         return None
 
 def create_reply_message(service, message_id, reply_text, user_id='me'):
+    """
+    Create a reply message.
+    
+    Args:
+        service: Gmail API service instance
+        message_id: ID of the message to reply to
+        reply_text: Text of the reply
+        user_id: User's email address or 'me'
+        
+    Returns:
+        Message object or None if service is None
+    """
+    if service is None:
+        print("Service is None in create_reply_message")
+        return None
+        
     try:
         original_message = service.users().messages().get(userId=user_id, id=message_id, format='full').execute()
         headers = original_message['payload']['headers']
@@ -227,52 +377,31 @@ def create_reply_message(service, message_id, reply_text, user_id='me'):
         body = {'raw': raw}
         return body
     except Exception as error:
-        print(f'An error occurred: {error}')
+        print(f'Error in create_reply_message: {error}')
         return None
 
 def send_message(service, message_body, user_id='me'):
+    """
+    Send a message.
+    
+    Args:
+        service: Gmail API service instance
+        message_body: Message body to send
+        user_id: User's email address or 'me'
+        
+    Returns:
+        Message object or None if service is None
+    """
+    if service is None:
+        print("Service is None in send_message")
+        return None
+        
     try:
         message = service.users().messages().send(userId=user_id, body=message_body).execute()
         print(f'Message Id: {message["id"]}')
         return message
     except Exception as error:
-        print(f'An error occurred: {error}')
-        return None
-
-def create_reply_message(service, message_id, reply_text, user_id='me'):
-    try:
-        original_message = service.users().messages().get(userId=user_id, id=message_id, format='full').execute()
-        headers = original_message['payload']['headers']
-        subject = ''
-        for header in headers:
-            if header['name'] == 'Subject':
-                subject = header['value']
-                if not subject.startswith('Re:'):
-                    subject = 'Re: ' + subject
-            if header['name'] == 'From':
-                sender = header['value']
-            if header['name'] == 'To':
-                recipient = header['value']
-
-        reply = MIMEText(reply_text)
-        reply['to'] = sender
-        reply['from'] = recipient
-        reply['subject'] = subject
-        reply['In-Reply-To'] = original_message['id']
-        raw = base64.urlsafe_b64encode(reply.as_bytes()).decode()
-        body = {'raw': raw}
-        return body
-    except Exception as error:
-        print(f'An error occurred: {error}')
-        return None
-
-def send_message(service, message_body, user_id='me'):
-    try:
-        message = service.users().messages().send(userId=user_id, body=message_body).execute()
-        print(f'Message Id: {message["id"]}')
-        return message
-    except Exception as error:
-        print(f'An error occurred: {error}')
+        print(f'Error in send_message: {error}')
         return None
 
 

@@ -273,7 +273,35 @@
                 const subjectFilter = document.getElementById('subjectFilter').value;
                 console.log('Fetching emails with query:', subjectFilter); // Debug log
                 
-                const response = await fetch(`/fetch_emails/?query=${encodeURIComponent(subjectFilter)}`, {
+                // First, check if we need to authenticate
+                console.log('Checking Gmail authentication...'); // Debug log
+                const authCheckResponse = await fetch('/api/gmail/auth/', {
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'Authorization': `Bearer ${idToken}`,
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'same-origin'
+                });
+                
+                if (authCheckResponse.ok) {
+                    const authData = await authCheckResponse.json();
+                    console.log('Auth check response:', authData); // Debug log
+                    
+                    if (authData.auth_url) {
+                        console.log('Redirecting to auth URL:', authData.auth_url); // Debug log
+                        // Store the current URL to return to after OAuth
+                        const currentUrl = window.location.href;
+                        console.log('Storing return URL:', currentUrl); // Debug log
+                        sessionStorage.setItem('return_url', currentUrl);
+                        window.location.href = authData.auth_url;
+                        return;
+                    }
+                }
+                
+                // If we're authenticated, fetch emails
+                console.log('Fetching emails...'); // Debug log
+                const response = await fetch(`/api/fetch_emails/?query=${encodeURIComponent(subjectFilter)}`, {
                     method: 'GET',
                     headers: {
                         'Accept': 'application/json',
@@ -286,27 +314,6 @@
                 console.log('Got response from server:', response.status); // Debug log
                 const data = await response.json();
                 console.log('Response data:', data); // Debug log
-                
-                if (data.auth_required) {
-                    console.log('Auth required, initiating OAuth flow'); // Debug log
-                    // Store current URL to return to after auth
-                    localStorage.setItem('returnUrl', window.location.href);
-                    
-                    // Get the auth URL
-                    console.log('Fetching auth URL...'); // Debug log
-                    const authResponse = await fetch('/gmail/auth/', {
-                        headers: {
-                            'X-CSRFToken': csrfToken
-                        },
-                        credentials: 'same-origin'
-                    });
-                    const authData = await authResponse.json();
-                    console.log('Got auth URL:', authData); // Debug log
-                    
-                    // Redirect to Google's consent screen
-                    window.location.href = authData.auth_url;
-                    return;
-                }
                 
                 if (data.error) {
                     console.error('Error:', data.error);
@@ -537,42 +544,163 @@
             const code = urlParams.get('code');
             const state = urlParams.get('state');
             
+            console.log('OAuth callback - Code:', code); // Debug log
+            console.log('OAuth callback - State:', state); // Debug log
+            
             if (code && state) {
                 try {
+                    // Get Firebase token
+                    const user = firebase.auth().currentUser;
+                    if (!user) {
+                        console.log('No Firebase user found, redirecting to login'); // Debug log
+                        window.location.href = '/login/';
+                        return;
+                    }
+                    const idToken = await user.getIdToken();
+                    console.log('Got Firebase token'); // Debug log
+                    
                     // Get CSRF token
                     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
                     console.log('Got CSRF token:', csrfToken); // Debug log
+                    
                     // Exchange the code for tokens
+                    console.log('Exchanging code for tokens...'); // Debug log
                     const response = await fetch(`/gmail/callback/?code=${code}&state=${state}`, {
                         headers: {
-                            'X-CSRFToken': csrfToken
+                            'X-CSRFToken': csrfToken,
+                            'Authorization': `Bearer ${idToken}`,
+                            'Accept': 'application/json'
                         },
                         credentials: 'same-origin'
                     });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
                     const data = await response.json();
+                    console.log('Callback response:', data); // Debug log
                     
                     if (data.error) {
                         console.error('Error completing authentication:', data.error);
+                        window.location.href = '/email_assistant/?error=' + encodeURIComponent(data.error);
                         return;
                     }
                     
-                    // Get the return URL
-                    const returnUrl = localStorage.getItem('returnUrl') || '/';
-                    localStorage.removeItem('returnUrl');
+                    // Store a flag in sessionStorage to indicate we just completed OAuth
+                    console.log('Setting OAuth completed flag...'); // Debug log
+                    sessionStorage.setItem('oauth_completed', 'true');
+                    console.log('OAuth completed flag set:', sessionStorage.getItem('oauth_completed')); // Debug log
                     
-                    // Redirect back to the original page
+                    // Get the return URL from sessionStorage or use default
+                    const returnUrl = sessionStorage.getItem('return_url') || '/email_assistant/';
+                    console.log('Return URL:', returnUrl); // Debug log
+                    
+                    // Clear the return URL
+                    sessionStorage.removeItem('return_url');
+                    
+                    // Redirect to the return URL
+                    console.log('Redirecting to:', returnUrl); // Debug log
                     window.location.href = returnUrl;
+                    
                 } catch (error) {
                     console.error('Error handling OAuth callback:', error);
+                    window.location.href = '/email_assistant/?error=' + encodeURIComponent(error.message);
                 }
+            } else {
+                console.log('No code or state found in URL'); // Debug log
+                window.location.href = '/email_assistant/';
+            }
+        }
+
+        // Function to fetch emails
+        async function fetchEmails() {
+            const loadingIndicator = document.getElementById('emailLoading');
+            const fetchButton = document.getElementById('fetchEmails');
+            
+            try {
+                console.log('Starting email fetch...'); // Debug log
+                // Show loading indicator and disable button
+                loadingIndicator.style.display = 'block';
+                fetchButton.disabled = true;
+                
+                // Get Firebase token
+                const user = firebase.auth().currentUser;
+                if (!user) {
+                    console.log('No Firebase user found, redirecting to login'); // Debug log
+                    window.location.href = '/login/';
+                    return;
+                }
+                const idToken = await user.getIdToken();
+                console.log('Got Firebase token'); // Debug log
+                
+                const subjectFilter = document.getElementById('subjectFilter').value;
+                console.log('Fetching emails with query:', subjectFilter); // Debug log
+                
+                // Fetch emails
+                console.log('Fetching emails...'); // Debug log
+                const response = await fetch(`/api/fetch_emails/?query=${encodeURIComponent(subjectFilter)}`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                        'Authorization': `Bearer ${idToken}`
+                    },
+                    credentials: 'same-origin'
+                });
+                
+                console.log('Got response from server:', response.status); // Debug log
+                const data = await response.json();
+                console.log('Response data:', data); // Debug log
+                
+                if (data.error) {
+                    console.error('Error:', data.error);
+                    alert(data.error);
+                    return;
+                }
+                
+                // Display emails if we have them
+                console.log('Displaying emails:', data.emails); // Debug log
+                displayEmail(data.emails);
+            } catch (error) {
+                console.error('Error fetching emails:', error);
+                alert('Failed to fetch emails. Please try again.');
+            } finally {
+                // Hide loading indicator and enable button
+                loadingIndicator.style.display = 'none';
+                fetchButton.disabled = false;
             }
         }
 
         // Call this function when the page loads
         document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM Content Loaded'); // Debug log
+            console.log('Current pathname:', window.location.pathname); // Debug log
+            
             // Check if we're on the callback page
             if (window.location.pathname === '/gmail/callback/') {
+                console.log('On callback page, handling OAuth...'); // Debug log
                 handleOAuthCallback();
+            } else if (window.location.pathname === '/email_assistant/') {
+                // Check if we just completed OAuth by looking for state and code in URL
+                const urlParams = new URLSearchParams(window.location.search);
+                const state = urlParams.get('state');
+                const code = urlParams.get('code');
+                const scope = urlParams.get('scope');
+                
+                console.log('URL params - State:', state); // Debug log
+                console.log('URL params - Code:', code); // Debug log
+                console.log('URL params - Scope:', scope); // Debug log
+                
+                if (state && code && scope) {
+                    console.log('OAuth parameters found, fetching emails...'); // Debug log
+                    // Clear the URL parameters
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    // Fetch emails
+                    fetchEmails();
+                } else {
+                    console.log('No OAuth parameters found'); // Debug log
+                }
             }
         });
     </script>

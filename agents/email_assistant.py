@@ -46,6 +46,8 @@ from google.oauth2.credentials import Credentials
 from ai_assistant.utils import load_email_templates, save_email_template
 import smtplib
 import subprocess
+import secrets
+from django.http import JsonResponse
 
 SCOPES = [
     'https://mail.google.com/',
@@ -564,6 +566,30 @@ def construct_query(query_params):
     query = ' '.join(query_parts)
     print(f"Constructed query: {query}")
     return query
+
+def get_gmail_auth_url(request):
+    """Get the Gmail OAuth URL."""
+    try:
+        is_local = os.getenv('APP_ENV', 'local') == 'local'
+        redirect_uri = 'http://localhost:8000/gmail/callback/' if is_local else 'https://www.backend.purnam.ai/gmail/callback/'
+        print(f"Using redirect URI: {redirect_uri}") # Debug print
+        
+        # Generate a random state
+        state = secrets.token_urlsafe(32)
+        
+        # Store the state in the session
+        request.session['oauth_state'] = state
+        
+        # Create the OAuth URL
+        oauth_url = f"https://accounts.google.com/o/oauth2/v2/auth?client_id={GMAIL_CLIENT_ID}&redirect_uri={redirect_uri}&response_type=code&scope=https://mail.google.com/ https://www.googleapis.com/auth/gmail.settings.basic https://www.googleapis.com/auth/gmail.modify&state={state}&access_type=offline&prompt=consent"
+        
+        return JsonResponse({
+            'auth_url': oauth_url,
+            'redirect_uri': redirect_uri  # Pass the redirect URI to the frontend
+        })
+    except Exception as e:
+        print(f"Error getting Gmail auth URL: {str(e)}") # Debug print
+        return JsonResponse({'error': str(e)}, status=500)
 
 
 

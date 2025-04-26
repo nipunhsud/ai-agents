@@ -294,6 +294,8 @@
                         const currentUrl = window.location.href;
                         console.log('Storing return URL:', currentUrl); // Debug log
                         sessionStorage.setItem('return_url', currentUrl);
+                        // Store the redirect URI for the callback
+                        sessionStorage.setItem('oauth_redirect_uri', authData.redirect_uri);
                         window.location.href = authData.auth_url;
                         return;
                     }
@@ -563,6 +565,10 @@
                     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
                     console.log('Got CSRF token:', csrfToken); // Debug log
                     
+                    // Get the stored redirect URI
+                    const redirectUri = sessionStorage.getItem('oauth_redirect_uri');
+                    console.log('Using redirect URI:', redirectUri); // Debug log
+                    
                     // Exchange the code for tokens
                     console.log('Exchanging code for tokens...'); // Debug log
                     const response = await fetch(`/gmail/callback/?code=${code}&state=${state}`, {
@@ -596,8 +602,9 @@
                     const returnUrl = sessionStorage.getItem('return_url') || '/email_assistant/';
                     console.log('Return URL:', returnUrl); // Debug log
                     
-                    // Clear the return URL
+                    // Clear the stored URLs
                     sessionStorage.removeItem('return_url');
+                    sessionStorage.removeItem('oauth_redirect_uri');
                     
                     // Redirect to the return URL
                     console.log('Redirecting to:', returnUrl); // Debug log

@@ -72,6 +72,33 @@ def setup_chrome():
         print(f"Error setting up Chrome: {e}")
         raise
 
+def get_auth_url():
+    """
+    Get the authorization URL for Gmail OAuth.
+    
+    Returns:
+        tuple: (auth_url, state) for OAuth flow
+    """
+    flow = InstalledAppFlow.from_client_secrets_file(
+        "client_secret.json", SCOPES
+    )
+    return flow.authorization_url()
+
+def exchange_code_for_token(code):
+    """
+    Exchange authorization code for access token.
+    
+    Args:
+        code: The authorization code from OAuth callback
+        
+    Returns:
+        Credentials object
+    """
+    flow = InstalledAppFlow.from_client_secrets_file(
+        "client_secret.json", SCOPES
+    )
+    return flow.fetch_token(code=code)
+
 def authenticate_gmail_api(user):
     """
     Authenticate Gmail API for a specific user.
@@ -103,25 +130,7 @@ def authenticate_gmail_api(user):
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                "client_secret.json", SCOPES
-            )
-            try:
-                if is_local:
-                    # Use Chrome browser for local development
-                    creds = flow.run_local_server(port=0, browser=webbrowser.get('chrome'))
-                else:
-                    # On Render, use headless browser
-                    import undetected_chromedriver as uc
-                    options = uc.ChromeOptions()
-                    options.add_argument('--headless')
-                    options.add_argument('--no-sandbox')
-                    options.add_argument('--disable-dev-shm-usage')
-                    driver = uc.Chrome(options=options)
-                    creds = flow.run_local_server(port=0, browser=driver)
-            except Exception as e:
-                print(f"Error during authentication: {e}")
-                raise
+            return None
             
         # Save or update the credentials in the database
         GmailToken.objects.update_or_create(

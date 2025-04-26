@@ -8,7 +8,7 @@ from datetime import datetime, timezone, timedelta
 
 from django.views import View
 from django.conf import settings
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.http import JsonResponse
 from langchain.schema import HumanMessage
 from langchain.chat_models import ChatOpenAI
@@ -28,6 +28,7 @@ from email.mime.text import MIMEText
 import base64
 from django.contrib.auth import login
 from django.contrib.auth.models import User
+import pickle
 
 from .agent import Agent
 from .models import Message
@@ -38,7 +39,7 @@ from .gift_agent import gift_prediction
 from .document_processor import DocumentProcessor
 from .technical_writer import TechnicalWriter, DocumentType, OutputFormat
 from .assistant import Assistant
-from .email_assistant import email_generator, authenticate_gmail_api, list_messages, get_message
+from .email_assistant import email_generator, authenticate_gmail_api, list_messages, get_message, get_auth_url, exchange_code_for_token
 from .stock_assistant import stock_generator
 from .rental_assistant import rental_generator
 from .slack import slack_generator
@@ -1234,4 +1235,86 @@ def login(request):
             return JsonResponse({'error': str(e)}, status=500)
     
     return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+@login_required
+def initiate_gmail_auth(request):
+    """
+    Initiate the Gmail OAuth flow.
+    """
+    try:
+        # Get the authorization URL
+        auth_url, state = get_auth_url()
+        
+        # Store state in session for verification
+        request.session['oauth_state'] = state
+        
+        # Return the authorization URL
+        return JsonResponse({
+            'auth_url': auth_url
+        })
+    except Exception as e:
+        return JsonResponse({
+            'error': 'Failed to initiate Gmail authentication',
+            'detail': str(e)
+        }, status=500)
+
+@login_required
+def gmail_oauth_callback(request):
+    """
+    Handle the OAuth callback from Gmail.
+    """
+    try:
+        # Get the authorization code from the request
+        code = request.GET.get('code')
+        state = request.GET.get('state')
+        
+        # Verify state matches what we stored
+        if state != request.session.get('oauth_state'):
+            return JsonResponse({
+                'error': 'Invalid state parameter'
+            }, status=400)
+        
+        # Exchange code for token
+        creds = exchange_code_for_token(code)
+        
+        # Save the credentials
+        GmailToken.objects.update_or_create(
+            user=request.user,
+            defaults={'token_data': pickle.dumps(creds)}
+        )
+        
+        # Clear the state from session
+        del request.session['oauth_state']
+        
+        return JsonResponse({
+            'message': 'Gmail authentication successful'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'error': 'Failed to complete Gmail authentication',
+            'detail': str(e)
+        }, status=500)
+
+@login_required
+def fetch_emails(request):
+    """
+    Fetch emails from Gmail.
+    """
+    try:
+        service = authenticate_gmail_api(request.user)
+        if service is None:
+            # Need to initiate OAuth flow
+            return JsonResponse({
+                'error': 'Gmail authentication required',
+                'auth_required': True
+            })
+            
+        # Continue with email fetching...
+        # Your existing email fetching code here
+        
+    except Exception as e:
+        return JsonResponse({
+            'error': 'Failed to fetch emails',
+            'detail': str(e)
+        }, status=500)
     

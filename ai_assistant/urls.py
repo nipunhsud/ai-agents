@@ -57,11 +57,10 @@ urlpatterns = [
     path('user/stock-analyses-csv/', views.StockTickerCSVUploadView.as_view(), name='stock_analyses_csv_upload'),
     path('api/public-buy-stocks/', views.PublicBuyStocksView.as_view(), name='public-buy-stocks'),
     path('fetch_emails/', GmailFetchView.as_view(), name='fetch_emails'),
-    path('send_reply/', views.send_reply, name='send_reply'),
-    path('api/user/stock-analyses/', views.UserStockAnalysisView.as_view(), name='user_stock_analyses'),
     path('api/gmail/auth/', views.GmailAuthView.as_view(), name='gmail_auth'),
     path('api/fetch_emails/', views.FetchEmailsView.as_view(), name='fetch_emails'),
     path('gmail/callback/', views.GmailCallbackView.as_view(), name='gmail_callback'),
+    path('send_reply/', views.SendReplyView.as_view(), name='send_reply'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 

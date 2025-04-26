@@ -40,7 +40,7 @@ from .gift_agent import gift_prediction
 from .document_processor import DocumentProcessor
 from .technical_writer import TechnicalWriter, DocumentType, OutputFormat
 from .assistant import Assistant
-from .email_assistant import email_generator, authenticate_gmail_api, list_messages, get_message, get_auth_url, exchange_code_for_token
+from .email_assistant import email_generator, authenticate_gmail_api, list_messages, get_message, get_auth_url, exchange_code_for_token, create_reply_message, send_message
 from .stock_assistant import stock_generator
 from .rental_assistant import rental_generator
 from .slack import slack_generator
@@ -1192,54 +1192,42 @@ class GmailFetchView(View):
                 'detail': str(e)
             }, status=500)
 
-@csrf_protect
-def send_reply(request):
-    if request.method != 'POST':
-        return JsonResponse({'error': 'Method not allowed'}, status=405)
-    
-    try:
-        # Get all required fields from the request
-        email_id = request.POST.get('email_id')
-        subject = request.POST.get('subject')
-        reply_content = request.POST.get('reply_content')
-        to_email = request.POST.get('to_email')
-        from_email = request.POST.get('from_email')
-        thread_id = request.POST.get('thread_id')
-        
-        if not all([email_id, subject, reply_content, to_email, from_email]):
-            return JsonResponse({'error': 'Missing required fields'}, status=400)
-
-        # Initialize Gmail API
-        gmail = Gmail()
-
-        # Create the email message
-        message = MIMEText(reply_content)
-        message['to'] = to_email
-        message['from'] = from_email
-        message['subject'] = subject
-        
-        # Set In-Reply-To and References headers for threading
-        if thread_id:
-            message['In-Reply-To'] = f'<{thread_id}@mail.gmail.com>'
-            message['References'] = f'<{thread_id}@mail.gmail.com>'
+@method_decorator(firebase_auth_required, name='dispatch')
+class SendReplyView(View):
+    def post(self, request):
+        try:
+            # Get all required fields from the request
+            email_id = request.POST.get('email_id')
+            subject = request.POST.get('subject')
+            reply_content = request.POST.get('reply_content')
+            to_email = request.POST.get('to_email')
+            from_email = request.POST.get('from_email')
+            thread_id = request.POST.get('thread_id')
             
-        # Convert the message to base64 encoded string
-        raw = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
+            if not all([email_id, subject, reply_content, to_email, from_email]):
+                return JsonResponse({'error': 'Missing required fields'}, status=400)
+
+            # Get Gmail service for the current user
+            service = authenticate_gmail_api(request.user)
+            if not service:
+                return JsonResponse({'error': 'Gmail service not available'}, status=401)
+
+            # Create the reply message
+            message_body = create_reply_message(service, email_id, reply_content)
+            if not message_body:
+                return JsonResponse({'error': 'Failed to create reply message'}, status=500)
+
+            # Send the message
+            sent_message = send_message(service, message_body)
+            if not sent_message:
+                return JsonResponse({'error': 'Failed to send message'}, status=500)
             
-        # Send the email using the correct method signature
-        gmail.send_message(
-            sender=from_email,
-            to=to_email,
-            subject=subject,
-            msg_plain=reply_content,
-        )
-        
-        return JsonResponse({'success': True})
-        
-    except Exception as e:
-        logger.error(f"Error sending reply: {str(e)}", exc_info=True)
-        return JsonResponse({'error': str(e)}, status=500)
-    
+            return JsonResponse({'success': True})
+            
+        except Exception as e:
+            logger.error(f"Error sending reply: {str(e)}", exc_info=True)
+            return JsonResponse({'error': str(e)}, status=500)
+
 @ensure_csrf_cookie
 def login_page(request):
     try:

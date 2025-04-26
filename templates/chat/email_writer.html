@@ -9,6 +9,10 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
     <script>
+        // Get CSRF token from the template
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        console.log('CSRF Token:', csrfToken); // Debug log
+
         // Initialize Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyAte-xVLE3dIVPAJNbc8qhSf_55q9vCzpM",
@@ -244,10 +248,6 @@
     </div>
 
     <script>
-        // Get CSRF token from the template
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-        console.log('CSRF Token:', csrfToken); // Debug log
-
         let currentEmailId = null;
 
         // Fetch Emails
@@ -474,34 +474,57 @@
             if (!currentEmailId) return;
             
             try {
+                // Get Firebase token
+                const user = firebase.auth().currentUser;
+                if (!user) {
+                    console.log('No Firebase user found, redirecting to login');
+                    window.location.href = '/login/';
+                    return;
+                }
+                const idToken = await user.getIdToken();
+                
+                // Get CSRF token from cookie
+                const csrfCookie = document.cookie.split('; ')
+                    .find(row => row.startsWith('csrftoken='))
+                    ?.split('=')[1];
+                
                 const formData = new URLSearchParams({
                     'email_id': currentEmailId,
                     'subject': document.getElementById('replySubject').value,
                     'reply_content': document.getElementById('replyContent').value,
                     'to_email': document.getElementById('originalFrom').textContent.replace('From: ', ''),
                     'from_email': document.getElementById('originalTo').textContent.replace('To: ', ''),
-                    'thread_id': currentEmailId // Using email_id as thread_id since they're related
+                    'thread_id': currentEmailId
                 });
-
+                
                 const response = await fetch('/send_reply/', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
-                        'X-CSRFToken': csrfToken,
+                        'X-CSRFToken': csrfCookie,
+                        'Authorization': `Bearer ${idToken}`
                     },
+                    credentials: 'same-origin',
                     body: formData
                 });
                 
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Error response:', errorText);
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
                 const data = await response.json();
+                
                 if (data.success) {
                     alert('Reply sent successfully!');
                     document.getElementById('replySection').style.display = 'none';
                 } else {
-                    alert('Failed to send reply');
+                    alert('Failed to send reply: ' + (data.error || 'Unknown error'));
                 }
             } catch (error) {
                 console.error('Error sending reply:', error);
-                alert('Error sending reply');
+                alert('Error sending reply: ' + error.message);
             }
         });
 

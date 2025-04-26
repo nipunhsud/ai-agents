@@ -212,15 +212,19 @@ def authenticate_gmail_api(user):
         token_dict = pickle.loads(token_data)
         print(f"Loaded token dict type: {type(token_dict)}") # Debug print
         
-        # Convert to Credentials object
-        creds = Credentials(
-            token=token_dict.get('token'),
-            refresh_token=token_dict.get('refresh_token'),
-            token_uri=token_dict.get('token_uri'),
-            client_id=token_dict.get('client_id'),
-            client_secret=token_dict.get('client_secret'),
-            scopes=token_dict.get('scopes', SCOPES)
-        )
+        # If token_dict is already a Credentials object, use it directly
+        if isinstance(token_dict, Credentials):
+            creds = token_dict
+        else:
+            # Convert dictionary to Credentials object
+            creds = Credentials(
+                token=token_dict['token'],
+                refresh_token=token_dict['refresh_token'],
+                token_uri=token_dict['token_uri'],
+                client_id=token_dict['client_id'],
+                client_secret=token_dict['client_secret'],
+                scopes=token_dict.get('scopes', SCOPES)
+            )
         print(f"Created credentials type: {type(creds)}") # Debug print
         
         # Check if token needs refresh
@@ -230,7 +234,7 @@ def authenticate_gmail_api(user):
                 creds.refresh(Request())
                 print("Token refreshed successfully") # Debug print
                 
-                # Save the refreshed token
+                # Convert Credentials to dictionary for storage
                 token_dict = {
                     'token': creds.token,
                     'refresh_token': creds.refresh_token,
@@ -256,7 +260,23 @@ def authenticate_gmail_api(user):
             
     except GmailToken.DoesNotExist:
         print("No existing Gmail token found") # Debug print
-        return None
+        # Get the authorization URL
+        try:
+            auth_url, state = get_auth_url()
+            print(f"Generated auth URL: {auth_url}") # Debug print
+            print(f"Generated state: {state}") # Debug print
+            
+            # Store the state in the session
+            from django.contrib.sessions.backends.db import SessionStore
+            session = SessionStore()
+            session['oauth_state'] = state
+            session.save()
+            
+            # Return None to indicate OAuth is needed
+            return None
+        except Exception as e:
+            print(f"Error getting auth URL: {e}") # Debug print
+            return None
         
     print("Authentication successful, building Gmail service") # Debug print
     try:

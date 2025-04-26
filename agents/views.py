@@ -485,10 +485,19 @@ class FetchEmailsView(View):
             print(f"Service object: {service}") # Debug print
             
             if service is None:
-                print("Service is None, returning empty list") # Debug print
+                print("Service is None, initiating OAuth") # Debug print
+                # Get the authorization URL
+                auth_url, state = get_auth_url()
+                print(f"Generated auth URL: {auth_url}") # Debug print
+                print(f"Generated state: {state}") # Debug print
+                
+                # Store the state in the session
+                request.session['oauth_state'] = state
+                
+                # Return the auth URL
                 return JsonResponse({
-                    'emails': [],
-                    'count': 0
+                    'auth_url': auth_url,
+                    'redirect_uri': 'http://localhost:8000/gmail/callback/' if os.getenv('APP_ENV', 'local') == 'local' else 'https://www.backend.purnam.ai/gmail/callback/'
                 })
                 
             # Get query parameters
@@ -521,7 +530,6 @@ class FetchEmailsView(View):
             # Format response
             emails = []
             for message in messages:
-                print(f"Processing message ID: {message['id']}") # Debug print
                 message_data = get_message(service, message['id'])
                 if message_data:
                     # Extract headers
@@ -551,18 +559,14 @@ class FetchEmailsView(View):
                         'thread_id': message_data['threadId'],
                     }
                     emails.append(email_data)
-                    print(f"Added email: {subject}") # Debug print
-            
-            print(f"Returning {len(emails)} emails") # Debug print
+
             return JsonResponse({
                 'emails': emails,
                 'count': len(emails)
             })
-            
+
         except Exception as e:
-            print(f"Error in fetch_emails: {str(e)}") # Debug print
-            print(f"Error type: {type(e)}") # Debug print
-            print(f"Error details: {str(e)}") # Debug print
+            logger.error(f"Error fetching emails: {str(e)}", exc_info=True)
             return JsonResponse({
                 'error': 'Failed to fetch emails',
                 'detail': str(e)
@@ -1327,21 +1331,11 @@ class GmailAuthView(View):
             request.session['firebase_user_email'] = user_email
             
             # Get the authorization URL
-            auth_url, state = get_auth_url()
-            print(f"Got auth URL: {auth_url}") # Debug print
-            
-            # Store state in session for verification
-            request.session['oauth_state'] = state
-            print(f"Stored state in session: {state}") # Debug print
-            
-            # Store return URL in session
-            request.session['return_url'] = request.META.get('HTTP_REFERER', '/email_assistant/')
-            print(f"Stored return URL: {request.session['return_url']}") # Debug print
+            auth_data = get_gmail_auth_url(request)
+            print(f"Got auth data: {auth_data}") # Debug print
             
             # Return the authorization URL
-            return JsonResponse({
-                'auth_url': auth_url
-            })
+            return auth_data
         except Exception as e:
             print(f"Error initiating Gmail auth: {str(e)}") # Debug print
             return JsonResponse({

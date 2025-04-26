@@ -22,8 +22,9 @@
 
         // Check authentication state
         firebase.auth().onAuthStateChanged((user) => {
-            if (!user) {
-                // Redirect to login page if not authenticated
+            if (!user && window.location.pathname !== '/login/') {
+                // Only redirect if we're not already on the login page
+                console.log('No Firebase user found, redirecting to login'); // Debug log
                 window.location.href = '/login/';
             }
         });
@@ -273,35 +274,7 @@
                 const subjectFilter = document.getElementById('subjectFilter').value;
                 console.log('Fetching emails with query:', subjectFilter); // Debug log
                 
-                // First, check if we need to authenticate
-                console.log('Checking Gmail authentication...'); // Debug log
-                const authCheckResponse = await fetch('/api/gmail/auth/', {
-                    headers: {
-                        'X-CSRFToken': csrfToken,
-                        'Authorization': `Bearer ${idToken}`,
-                        'Accept': 'application/json'
-                    },
-                    credentials: 'same-origin'
-                });
-                
-                if (authCheckResponse.ok) {
-                    const authData = await authCheckResponse.json();
-                    console.log('Auth check response:', authData); // Debug log
-                    
-                    if (authData.auth_url) {
-                        console.log('Redirecting to auth URL:', authData.auth_url); // Debug log
-                        // Store the current URL to return to after OAuth
-                        const currentUrl = window.location.href;
-                        console.log('Storing return URL:', currentUrl); // Debug log
-                        sessionStorage.setItem('return_url', currentUrl);
-                        // Store the redirect URI for the callback
-                        sessionStorage.setItem('oauth_redirect_uri', authData.redirect_uri);
-                        window.location.href = authData.auth_url;
-                        return;
-                    }
-                }
-                
-                // If we're authenticated, fetch emails
+                // Fetch emails
                 console.log('Fetching emails...'); // Debug log
                 const response = await fetch(`/api/fetch_emails/?query=${encodeURIComponent(subjectFilter)}`, {
                     method: 'GET',
@@ -320,6 +293,19 @@
                 if (data.error) {
                     console.error('Error:', data.error);
                     alert(data.error);
+                    return;
+                }
+                
+                // Check if we need to initiate OAuth
+                if (data.auth_url) {
+                    console.log('Need to initiate OAuth, redirecting to:', data.auth_url); // Debug log
+                    // Store the current URL to return to after OAuth
+                    const currentUrl = window.location.href;
+                    console.log('Storing return URL:', currentUrl); // Debug log
+                    sessionStorage.setItem('return_url', currentUrl);
+                    // Store the redirect URI for the callback
+                    sessionStorage.setItem('oauth_redirect_uri', data.redirect_uri);
+                    window.location.href = data.auth_url;
                     return;
                 }
                 
@@ -666,6 +652,19 @@
                     return;
                 }
                 
+                // Check if we need to initiate OAuth
+                if (data.auth_url) {
+                    console.log('Need to initiate OAuth, redirecting to:', data.auth_url); // Debug log
+                    // Store the current URL to return to after OAuth
+                    const currentUrl = window.location.href;
+                    console.log('Storing return URL:', currentUrl); // Debug log
+                    sessionStorage.setItem('return_url', currentUrl);
+                    // Store the redirect URI for the callback
+                    sessionStorage.setItem('oauth_redirect_uri', data.redirect_uri);
+                    window.location.href = data.auth_url;
+                    return;
+                }
+                
                 // Display emails if we have them
                 console.log('Displaying emails:', data.emails); // Debug log
                 displayEmail(data.emails);
@@ -680,7 +679,7 @@
         }
 
         // Call this function when the page loads
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             console.log('DOM Content Loaded'); // Debug log
             console.log('Current pathname:', window.location.pathname); // Debug log
             
@@ -689,24 +688,60 @@
                 console.log('On callback page, handling OAuth...'); // Debug log
                 handleOAuthCallback();
             } else if (window.location.pathname === '/email_assistant/') {
-                // Check if we just completed OAuth by looking for state and code in URL
-                const urlParams = new URLSearchParams(window.location.search);
-                const state = urlParams.get('state');
-                const code = urlParams.get('code');
-                const scope = urlParams.get('scope');
-                
-                console.log('URL params - State:', state); // Debug log
-                console.log('URL params - Code:', code); // Debug log
-                console.log('URL params - Scope:', scope); // Debug log
-                
-                if (state && code && scope) {
-                    console.log('OAuth parameters found, fetching emails...'); // Debug log
-                    // Clear the URL parameters
-                    window.history.replaceState({}, document.title, window.location.pathname);
-                    // Fetch emails
-                    fetchEmails();
-                } else {
-                    console.log('No OAuth parameters found'); // Debug log
+                try {
+                    // Get Firebase token
+                    const user = firebase.auth().currentUser;
+                    if (!user) {
+                        console.log('No Firebase user found, waiting for auth state change...'); // Debug log
+                        return; // Let the onAuthStateChanged handler handle the redirect
+                    }
+                    const idToken = await user.getIdToken();
+                    console.log('Got Firebase token'); // Debug log
+
+                    // Check Gmail authentication
+                    console.log('Checking Gmail authentication...'); // Debug log
+                    const authCheckResponse = await fetch('/api/gmail/auth/', {
+                        headers: {
+                            'X-CSRFToken': csrfToken,
+                            'Authorization': `Bearer ${idToken}`,
+                            'Accept': 'application/json'
+                        },
+                        credentials: 'same-origin'
+                    });
+                    
+                    if (authCheckResponse.ok) {
+                        const authData = await authCheckResponse.json();
+                        console.log('Auth check response:', authData); // Debug log
+                        
+                        if (authData.error) {
+                            console.error('Error:', authData.error);
+                            alert(authData.error);
+                            return;
+                        }
+                        
+                        if (authData.auth_url) {
+                            console.log('Redirecting to auth URL:', authData.auth_url); // Debug log
+                            // Store the current URL to return to after OAuth
+                            const currentUrl = window.location.href;
+                            console.log('Storing return URL:', currentUrl); // Debug log
+                            sessionStorage.setItem('return_url', currentUrl);
+                            // Store the redirect URI for the callback
+                            sessionStorage.setItem('oauth_redirect_uri', authData.redirect_uri);
+                            window.location.href = authData.auth_url;
+                            return;
+                        } else {
+                            // If already authenticated, fetch emails
+                            console.log('Already authenticated, fetching emails...'); // Debug log
+                            fetchEmails();
+                        }
+                    } else {
+                        const errorData = await authCheckResponse.json();
+                        console.error('Error checking Gmail authentication:', errorData);
+                        alert('Failed to check Gmail authentication. Please try again.');
+                    }
+                } catch (error) {
+                    console.error('Error checking Gmail authentication:', error);
+                    alert('Failed to check Gmail authentication. Please try again.');
                 }
             }
         });

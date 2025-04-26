@@ -111,11 +111,14 @@ def authenticate_gmail_api(user):
                     # Use Chrome browser for local development
                     creds = flow.run_local_server(port=0, browser=webbrowser.get('chrome'))
                 else:
-                    # On Render, use console flow which provides a URL for manual authentication
-                    auth_url, _ = flow.authorization_url()
-                    print(f"Please visit this URL to authorize the application: {auth_url}")
-                    code = input("Enter the authorization code: ")
-                    creds = flow.fetch_token(code=code)
+                    # On Render, use headless browser
+                    import undetected_chromedriver as uc
+                    options = uc.ChromeOptions()
+                    options.add_argument('--headless')
+                    options.add_argument('--no-sandbox')
+                    options.add_argument('--disable-dev-shm-usage')
+                    driver = uc.Chrome(options=options)
+                    creds = flow.run_local_server(port=0, browser=driver)
             except Exception as e:
                 print(f"Error during authentication: {e}")
                 raise

@@ -212,6 +212,9 @@
                 </svg>
                 Fetch Emails
             </button>
+            <button class="fetch-button" id="clearGmailAuth" style="margin-top: 8px; background-color: #dc3545; color: white;">
+                Clear Gmail Auth
+            </button>
             <div class="loading" id="emailLoading">
                 <div class="loading-icon"></div>
                 <span>Fetching emails...</span>
@@ -766,6 +769,57 @@
                     console.error('Error checking Gmail authentication:', error);
                     alert('Failed to check Gmail authentication. Please try again.');
                 }
+            }
+        });
+
+        // Add clear Gmail auth functionality
+        document.getElementById('clearGmailAuth').addEventListener('click', async () => {
+            try {
+                // Get Firebase token
+                const user = firebase.auth().currentUser;
+                if (!user) {
+                    console.log('No Firebase user found, redirecting to login');
+                    window.location.href = '/login/';
+                    return;
+                }
+                const idToken = await user.getIdToken();
+                
+                // Get CSRF token from cookie
+                const csrfCookie = document.cookie.split('; ')
+                    .find(row => row.startsWith('csrftoken='))
+                    ?.split('=')[1];
+                
+                const response = await fetch('/api/gmail/auth/', {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRFToken': csrfCookie,
+                        'Authorization': `Bearer ${idToken}`
+                    },
+                    credentials: 'same-origin'
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Error response:', errorText);
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Gmail authentication cleared successfully!');
+                    // Clear any stored tokens in the browser
+                    document.cookie.split(';').forEach(function(c) {
+                        document.cookie = c.replace(/^ +/, '').replace(/=.*/, '=;expires=' + new Date().toUTCString() + ';path=/');
+                    });
+                    // Reload the page to trigger re-authentication
+                    window.location.reload();
+                } else {
+                    alert('Failed to clear Gmail authentication: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error clearing Gmail auth:', error);
+                alert('Error clearing Gmail auth: ' + error.message);
             }
         });
     </script>

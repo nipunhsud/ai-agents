@@ -1295,8 +1295,6 @@ class GmailAuthView(View):
         Initiate the Gmail OAuth flow.
         """
         try:
-            print("Starting Gmail OAuth flow") # Debug print
-            
             # Get Firebase user info
             user_id = request.firebase_user['uid']
             user_email = request.firebase_user.get('email')
@@ -1320,14 +1318,48 @@ class GmailAuthView(View):
             
             # Get the authorization URL
             auth_data = get_gmail_auth_url(request)
-            print(f"Got auth data: {auth_data}") # Debug print
             
             # Return the authorization URL
             return auth_data
         except Exception as e:
-            print(f"Error initiating Gmail auth: {str(e)}") # Debug print
             return JsonResponse({
                 'error': 'Failed to initiate Gmail authentication',
+                'detail': str(e)
+            }, status=500)
+
+    def delete(self, request):
+        """
+        Clear Gmail authentication.
+        """
+        try:
+            # Get Firebase user info
+            user_id = request.firebase_user['uid']
+            user_email = request.firebase_user.get('email')
+            
+            if not user_email:
+                return JsonResponse({
+                    'error': 'User email not found in Firebase token'
+                }, status=401)
+            
+            # Get Django user
+            try:
+                user_obj = User.objects.get(username=user_id)
+            except User.DoesNotExist:
+                return JsonResponse({
+                    'error': 'User not found'
+                }, status=404)
+            
+            # Delete GmailToken
+            GmailToken.objects.filter(user=user_obj).delete()
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Gmail authentication cleared successfully'
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'error': 'Failed to clear Gmail authentication',
                 'detail': str(e)
             }, status=500)
 

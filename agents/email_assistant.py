@@ -107,7 +107,7 @@ def authenticate_gmail_api(user):
         user: Django User object
         
     Returns:
-        Gmail API service object
+        Gmail API service object or None if authentication is needed
     """
     # Check if running locally
     is_local = os.getenv('APP_ENV', 'local') == 'local'
@@ -128,8 +128,13 @@ def authenticate_gmail_api(user):
     # If no valid credentials, initiate manual sign-in
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
+            try:
+                creds.refresh(Request())
+            except Exception:
+                # If refresh fails, we need to re-authenticate
+                return None
         else:
+            # No valid credentials, need to authenticate
             return None
             
         # Save or update the credentials in the database
@@ -141,6 +146,20 @@ def authenticate_gmail_api(user):
     return build('gmail', 'v1', credentials=creds)
 
 def list_messages(service, user_id='me', query=''):
+    """
+    List messages in the user's mailbox.
+    
+    Args:
+        service: Gmail API service instance
+        user_id: User's email address or 'me'
+        query: Query string to filter messages
+        
+    Returns:
+        List of messages or None if service is None
+    """
+    if service is None:
+        return None
+        
     try:
         response = service.users().messages().list(userId=user_id, q=query).execute()
         messages = []
@@ -152,6 +171,20 @@ def list_messages(service, user_id='me', query=''):
         return None
 
 def get_message(service, message_id, user_id='me'):
+    """
+    Get a specific message by ID.
+    
+    Args:
+        service: Gmail API service instance
+        message_id: ID of the message to retrieve
+        user_id: User's email address or 'me'
+        
+    Returns:
+        Message object or None if service is None
+    """
+    if service is None:
+        return None
+        
     try:
         message = service.users().messages().get(userId=user_id, id=message_id, format='full').execute()
         return message

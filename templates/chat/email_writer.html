@@ -253,6 +253,7 @@
             const fetchButton = document.getElementById('fetchEmails');
             
             try {
+                console.log('Starting email fetch...'); // Debug log
                 // Show loading indicator and disable button
                 loadingIndicator.style.display = 'block';
                 fetchButton.disabled = true;
@@ -260,12 +261,16 @@
                 // Get Firebase token
                 const user = firebase.auth().currentUser;
                 if (!user) {
+                    console.log('No Firebase user found, redirecting to login'); // Debug log
                     window.location.href = '/login/';
                     return;
                 }
                 const idToken = await user.getIdToken();
+                console.log('Got Firebase token'); // Debug log
                 
                 const subjectFilter = document.getElementById('subjectFilter').value;
+                console.log('Fetching emails with query:', subjectFilter); // Debug log
+                
                 const response = await fetch(`/fetch_emails/?query=${encodeURIComponent(subjectFilter)}`, {
                     method: 'GET',
                     headers: {
@@ -276,15 +281,34 @@
                     credentials: 'same-origin'
                 });
                 
-                if (!response.ok) {
-                    if (response.status === 401) {
-                        window.location.href = '/login/';
-                        return;
-                    }
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                console.log('Got response from server:', response.status); // Debug log
+                const data = await response.json();
+                console.log('Response data:', data); // Debug log
+                
+                if (data.auth_required) {
+                    console.log('Auth required, initiating OAuth flow'); // Debug log
+                    // Store current URL to return to after auth
+                    localStorage.setItem('returnUrl', window.location.href);
+                    
+                    // Get the auth URL
+                    console.log('Fetching auth URL...'); // Debug log
+                    const authResponse = await fetch('/gmail/auth/');
+                    const authData = await authResponse.json();
+                    console.log('Got auth URL:', authData); // Debug log
+                    
+                    // Redirect to Google's consent screen
+                    window.location.href = authData.auth_url;
+                    return;
                 }
                 
-                const data = await response.json();
+                if (data.error) {
+                    console.error('Error:', data.error);
+                    alert(data.error);
+                    return;
+                }
+                
+                // Display emails if we have them
+                console.log('Displaying emails:', data.emails); // Debug log
                 displayEmail(data.emails);
             } catch (error) {
                 console.error('Error fetching emails:', error);
@@ -485,6 +509,43 @@
             } catch (error) {
                 console.error('Error signing out:', error);
                 alert('Error signing out. Please try again.');
+            }
+        });
+
+        // Function to handle the OAuth callback
+        async function handleOAuthCallback() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            const state = urlParams.get('state');
+            
+            if (code && state) {
+                try {
+                    // Exchange the code for tokens
+                    const response = await fetch(`/gmail/callback/?code=${code}&state=${state}`);
+                    const data = await response.json();
+                    
+                    if (data.error) {
+                        console.error('Error completing authentication:', data.error);
+                        return;
+                    }
+                    
+                    // Get the return URL
+                    const returnUrl = localStorage.getItem('returnUrl') || '/';
+                    localStorage.removeItem('returnUrl');
+                    
+                    // Redirect back to the original page
+                    window.location.href = returnUrl;
+                } catch (error) {
+                    console.error('Error handling OAuth callback:', error);
+                }
+            }
+        }
+
+        // Call this function when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check if we're on the callback page
+            if (window.location.pathname === '/gmail/callback/') {
+                handleOAuthCallback();
             }
         });
     </script>

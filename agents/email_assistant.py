@@ -621,7 +621,8 @@ def get_gmail_auth_url(request):
         
         return JsonResponse({
             'auth_url': oauth_url,
-            'redirect_uri': redirect_uri  # Pass the redirect URI to the frontend
+            'redirect_uri': redirect_uri,  # Pass the redirect URI to the frontend
+            'state': state  # Pass the state to the frontend
         })
     except Exception as e:
         print(f"Error getting Gmail auth URL: {str(e)}") # Debug print

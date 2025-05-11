@@ -438,6 +438,7 @@ class EmailAssistantView(View):
     def get(self, request):
         return render(request, 'chat/email_writer.html')
 
+    @method_decorator(firebase_auth_required)
     def post(self, request):
         try:
             # Parse JSON data from request body
@@ -451,7 +452,28 @@ class EmailAssistantView(View):
             to_email = data.get('to', '')
             reply_content = data.get('reply_content', '')
 
-            if not original_content:
+            # Get current user's email from Firebase token
+            current_user_email = request.firebase_user.get('email')
+            print(f"current_user_email: {current_user_email}")
+            
+            # Extract email from from_email if it's in "Name <email>" format
+            from_email_clean = from_email
+            if '<' in from_email and '>' in from_email:
+                from_email_clean = from_email[from_email.find('<')+1:from_email.find('>')]
+            print(f"from_email_clean: {from_email_clean}")
+            
+            # Check if this is a new email composition
+            is_new_email = (
+                not original_content and 
+                from_email_clean == current_user_email
+            )
+            print(f"is_new_email: {is_new_email}")
+            print(f"original_content: {original_content}")
+            print(f"reply_content: {reply_content}")
+            print(f"from_email: {from_email}")
+            
+            # Only validate original_content if this is a reply (not a new email)
+            if not is_new_email and not original_content:
                 return JsonResponse({'error': 'Input cannot be empty.'})
 
             # Generate response using your email assistant with reply content
@@ -861,7 +883,7 @@ class UserStockAnalysisView(View):
             ticker = request.GET.get('ticker')
             
             # Calculate date 7 days ago
-            seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
+            seven_days_ago = datetime.now(timezone.utc) - timedelta(days=10)
             
             # Get user email from firebase auth
             user_email = request.firebase_user.get('email')
@@ -1324,10 +1346,11 @@ class GmailAuthView(View):
             request.session['oauth_state'] = state
             request.session.save()  # Explicitly save the session
             
-            # Return the authorization URL
+            # Return the authorization URL and state
             return JsonResponse({
                 'auth_url': auth_url,
-                'redirect_uri': 'http://localhost:8000/gmail/callback/' if os.getenv('APP_ENV', 'local') == 'local' else 'https://www.backend.purnam.ai/gmail/callback/'
+                'redirect_uri': 'http://localhost:8000/gmail/callback/' if os.getenv('APP_ENV', 'local') == 'local' else 'https://www.backend.purnam.ai/gmail/callback/',
+                'state': state  # Include the state in the response
             })
             
         except Exception as e:
@@ -1384,13 +1407,6 @@ class GmailCallbackView(View):
             state = request.GET.get('state')
             
             print(f"Received callback with code: {code[:10]}... and state: {state}") # Debug print
-            
-            # Verify state matches what we stored
-            if state != request.session.get('oauth_state'):
-                print(f"State mismatch. Received: {state}, Expected: {request.session.get('oauth_state')}") # Debug print
-                return JsonResponse({
-                    'error': 'Invalid state parameter'
-                }, status=400)
             
             # Get user info from session or Firebase token
             if request.headers.get('Authorization'):

@@ -51,8 +51,8 @@
             try {
                 console.log('Starting fetch emails process'); // Debug log
                 // Show loading indicator and disable button
-                loadingIndicator.style.display = 'block';
-                fetchButton.disabled = true;
+                if (loadingIndicator) loadingIndicator.style.display = 'block';
+                if (fetchButton) fetchButton.disabled = true;
                 
                 // Get Firebase token
                 const user = firebase.auth().currentUser;
@@ -88,6 +88,8 @@
                         sessionStorage.setItem('return_url', window.location.href);
                         // Store the redirect URI for the callback
                         sessionStorage.setItem('oauth_redirect_uri', data.redirect_uri);
+                        // Store the state in localStorage
+                        localStorage.setItem('oauth_state', data.state);
                         // Redirect to the auth URL
                         window.location.href = data.auth_url;
                         return;
@@ -133,6 +135,7 @@
                     sessionStorage.setItem('return_url', window.location.href);
                     // Store the redirect URI for the callback
                     sessionStorage.setItem('oauth_redirect_uri', data.redirect_uri);
+                    localStorage.setItem('oauth_state', data.state);
                     window.location.href = data.auth_url;
                     return;
                 }
@@ -145,8 +148,8 @@
                 alert('Failed to fetch emails. Please try again.');
             } finally {
                 // Hide loading indicator and enable button
-                loadingIndicator.style.display = 'none';
-                fetchButton.disabled = false;
+                if (loadingIndicator) loadingIndicator.style.display = 'none';
+                if (fetchButton) fetchButton.disabled = false;
             }
         }
 
@@ -237,6 +240,15 @@
                     // Get the stored redirect URI
                     const redirectUri = sessionStorage.getItem('oauth_redirect_uri');
                     
+                    // Get the stored state from localStorage
+                    const storedState = localStorage.getItem('oauth_state');
+                    
+                    // Verify state matches
+                    if (state !== storedState) {
+                        console.error('State mismatch:', { received: state, stored: storedState });
+                        throw new Error('Invalid state parameter');
+                    }
+                    
                     // Exchange the code for tokens
                     const response = await fetch(`/gmail/callback/?code=${code}&state=${state}`, {
                         headers: {
@@ -262,9 +274,10 @@
                     // Get the return URL from sessionStorage or use default
                     const returnUrl = sessionStorage.getItem('return_url') || '/email_assistant/';
                     
-                    // Clear the stored URLs
+                    // Clear the stored URLs and state
                     sessionStorage.removeItem('return_url');
                     sessionStorage.removeItem('oauth_redirect_uri');
+                    localStorage.removeItem('oauth_state');
                     
                     // Redirect to the return URL
                     window.location.href = returnUrl;
@@ -388,6 +401,15 @@
                     loadingIndicator.style.display = 'block';
                     
                     try {
+                        // Get Firebase token
+                        const user = firebase.auth().currentUser;
+                        if (!user) {
+                            console.log('No Firebase user found, redirecting to login');
+                            window.location.href = '/login/';
+                            return;
+                        }
+                        const idToken = await user.getIdToken();
+                        
                         // Get all relevant email information
                         const emailData = {
                             email_id: currentEmailId,
@@ -405,7 +427,8 @@
                             headers: {
                                 'Content-Type': 'application/json',
                                 'Accept': 'application/json',
-                                'X-CSRFToken': csrfToken
+                                'X-CSRFToken': csrfToken,
+                                'Authorization': `Bearer ${idToken}`
                             },
                             credentials: 'same-origin',
                             body: JSON.stringify(emailData)

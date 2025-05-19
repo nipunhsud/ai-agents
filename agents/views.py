@@ -898,9 +898,7 @@ class UserStockAnalysisView(View):
             # Create base query with recommendation filter
             query = db.collection('stock_analysis')\
                      .where('timestamp', '>=', seven_days_ago)\
-                     .where('user_email', '==', "nipunhsud@gmail.com")\
-                     .where('recommendation_action', '==', 'BUY')  # Add this field when saving
-            
+                     .where('user_email', '==', "nipunhsud@gmail.com")            
             # Add ticker filter if provided
             if ticker:
                 query = query.where('ticker', '==', ticker.upper())
@@ -1096,7 +1094,7 @@ class PublicBuyStocksView(View):
                 query = query.where('ticker', '==', ticker.upper())
             
             # Get results
-            analyses = query.order_by('timestamp', direction=firestore.Query.DESCENDING).limit(10).stream()
+            analyses = query.order_by('timestamp', direction=firestore.Query.DESCENDING).limit(20).stream()
             
             # Format the response data
             analysis_list = []
